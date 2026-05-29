@@ -1,0 +1,37 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Visual Studio / Rider generated files
+.vs/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.userprefs
+*.pidb
+*.booproj
+
+# OS and tool noise
+.DS_Store
+Thumbs.db
+*.log
+
+# Unity crash dumps and profiler captures
+sysinfo.txt
+*.stackdump
+*.data
+*.data.gz
+*.resource
+
+# Packed builds and archives
+*.apk
+*.aab
+*.unitypackage
+*.zip
