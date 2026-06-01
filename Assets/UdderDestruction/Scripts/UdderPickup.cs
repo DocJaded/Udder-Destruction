@@ -5,11 +5,15 @@ namespace UdderDestruction
     public enum PickupType
     {
         Cream,
-        Cheese,
-        Buttermilk,
-        SpoiledMilk,
-        RawMilk,
-        Heal
+        Cranberry,
+        Strawberry,
+        Raspberry,
+        Blackberries,
+        MinorMoona,
+        NormalMoona,
+        RemarkableMoona,
+        ElysianMoona,
+        DairyDouble
     }
 
     public sealed class UdderPickup : MonoBehaviour

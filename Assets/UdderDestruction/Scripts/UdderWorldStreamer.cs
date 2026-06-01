@@ -98,6 +98,12 @@ namespace UdderDestruction
                         {
                             waterCenters.Add(prop.transform.position);
                             waterRadii.Add(Vector2.one * 1.35f);
+                            if (prop.TryGetComponent(out SpriteRenderer renderer))
+                            {
+                                renderer.color = game && game.IsWaterContaminated(prop.transform.position)
+                                    ? new Color(0.25f, 0.95f, 0.25f)
+                                    : new Color(0.7f, 0.95f, 1f);
+                            }
                         }
                     }
                 }
@@ -148,10 +154,22 @@ namespace UdderDestruction
                 for (int y = -1; y <= 1; y += 2)
                 {
                     Vector2 pos = center + new Vector2(x * spacing.x * 0.5f, y * spacing.y * 0.5f);
-                    tiles.Add(CreateProp("Procedural Pond Tile", waterSprite, pos, new Color(0.7f, 0.95f, 1f), 4f, -2));
+                    GameObject tile = CreateProp("Procedural Pond Tile", waterSprite, pos, new Color(0.7f, 0.95f, 1f), 4f, -2);
+                    AddWaterCollider(tile, waterSprite);
+                    tiles.Add(tile);
                 }
             }
             return tiles;
+        }
+
+        private static void AddWaterCollider(GameObject tile, Sprite sprite)
+        {
+            if (!tile || !sprite)
+                return;
+
+            var collider = tile.AddComponent<BoxCollider2D>();
+            collider.size = sprite.bounds.size;
+            collider.offset = sprite.bounds.center;
         }
 
         private GameObject CreateProp(string name, Sprite sprite, Vector2 position, Color color, float scale, int sortingOrder)

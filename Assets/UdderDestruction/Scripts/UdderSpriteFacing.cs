@@ -4,7 +4,7 @@ namespace UdderDestruction
 {
     internal static class UdderSpriteFacing
     {
-        public static void Apply(SpriteRenderer renderer, Vector2 direction, Sprite downSprite, Sprite sideSprite, Sprite upSprite)
+        public static void Apply(SpriteRenderer renderer, Vector2 direction, Sprite downSprite, Sprite sideSprite, Sprite upSprite, bool invertSideFlip = false)
         {
             if (!renderer || direction.sqrMagnitude <= 0.0001f)
                 return;
@@ -12,7 +12,7 @@ namespace UdderDestruction
             if (Mathf.Abs(direction.x) > Mathf.Abs(direction.y))
             {
                 renderer.sprite = sideSprite ? sideSprite : renderer.sprite;
-                renderer.flipX = direction.x < 0f;
+                renderer.flipX = invertSideFlip ? direction.x > 0f : direction.x < 0f;
                 return;
             }
 

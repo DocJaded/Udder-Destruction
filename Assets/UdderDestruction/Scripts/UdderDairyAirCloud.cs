@@ -6,14 +6,13 @@ namespace UdderDestruction
     public sealed class UdderDairyAirCloud : MonoBehaviour
     {
         public float life = 7f;
-        public float intoleranceDuration = 5f;
 
         private readonly List<UdderEnemy> enemies = new();
-        private SpriteRenderer spriteRenderer;
+        private SpriteRenderer[] spriteRenderers;
 
         private void Awake()
         {
-            spriteRenderer = GetComponent<SpriteRenderer>();
+            spriteRenderers = GetComponentsInChildren<SpriteRenderer>();
         }
 
         private void Update()
@@ -28,11 +27,21 @@ namespace UdderDestruction
             float pulse = 1f + Mathf.Sin(Time.time * 3.5f) * 0.08f;
             transform.localScale = Vector3.one * (2.4f * pulse);
 
-            if (spriteRenderer)
+            if (spriteRenderers != null)
             {
-                Color color = spriteRenderer.color;
-                color.a = Mathf.Clamp01(life / 1.5f) * 0.42f;
-                spriteRenderer.color = color;
+                for (int i = 0; i < spriteRenderers.Length; i++)
+                {
+                    SpriteRenderer spriteRenderer = spriteRenderers[i];
+                    if (!spriteRenderer)
+                        continue;
+
+                    Color color = spriteRenderer.color;
+                    if (color.a > 0f)
+                    {
+                        color.a = Mathf.Clamp01(life / 1.5f) * 0.42f;
+                        spriteRenderer.color = color;
+                    }
+                }
             }
 
             for (int i = enemies.Count - 1; i >= 0; i--)
@@ -43,7 +52,7 @@ namespace UdderDestruction
                     continue;
                 }
 
-                enemies[i].MakeLactoseIntolerant(intoleranceDuration);
+                enemies[i].MakeLactoseIntolerant(float.PositiveInfinity);
             }
         }
 

@@ -1,9 +1,14 @@
 using PixelBattleText;
+using System.Collections.Generic;
 using System.IO;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem.UI;
+#endif
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UdderDestruction;
@@ -80,7 +85,26 @@ namespace UdderDestruction.Editor
             game.bottleSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/02_Glass_Bottle_A.png");
             game.skullBottleSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/100_Soul_Trapped_R.png");
             game.creamSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/102_Essence_Health.png");
-            game.butterSprite = GetSolidSprite();
+            game.butterSprite = LoadSprite("Assets/Farming Asset Pack/farming-water.png", "farming-water_0");
+            game.spoiledPuddleSprite = LoadFirstSprite("Assets/War/Slime Enemy - Pixel Art/Sprites/Idle/Green/Sprite Sheet - Green Idle.png");
+            game.spoiledPuddleIdleController = LoadAsset<RuntimeAnimatorController>("Assets/War/Slime Enemy - Pixel Art/Animation/Idle/Green/Green Idle - Controller.controller");
+            game.spoiledPuddleHurtController = LoadAsset<RuntimeAnimatorController>("Assets/War/Slime Enemy - Pixel Art/Animation/Hurt/Green/Green Hurt - Controller.controller");
+            game.spoiledPuddleDeathController = LoadAsset<RuntimeAnimatorController>("Assets/War/Slime Enemy - Pixel Art/Animation/Death/Green/Green Death - Controller.controller");
+            game.dairyAirSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Skills/Singles/26_Cloud_Element.png");
+            game.minorMoonaSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Skills/Singles/151_Omnipotent.png");
+            game.normalMoonaSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Skills/Singles/154_Omnipotent.png");
+            game.remarkableMoonaSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Skills/Singles/155_Omnipotent.png");
+            game.elysianMoonaSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Skills/Singles/156_Omnipotent.png");
+            game.cranberrySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Botany/Singles/03_Cranberry.png");
+            game.strawberrySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Botany/Singles/22_Strawberry.png");
+            game.raspberrySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Botany/Singles/30_Raspberry.png");
+            game.blackberriesSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Botany/Singles/49_Blackberries.png");
+            game.wholeMilkSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/14_Snail_Slime.png");
+            game.buttermilkSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/123_MetalChunk_Gold.png");
+            game.rawMilkSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/83_MetalChunk_Silver.png");
+            game.rawMilkFlySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/93_Fly.png");
+            game.cottonDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/54_Cotton.png");
+            game.skullDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/01_Skull_Human.png");
             game.dolphinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/70_Mammal_Dolphin.png");
             game.seaUrchinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/114_Echinodermata_SeaUrchin.png");
             game.damageText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_damage.asset");
@@ -90,6 +114,17 @@ namespace UdderDestruction.Editor
             game.poisonText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_venom.asset");
             game.koText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_KO.asset");
             game.levelText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_lvlUp.asset");
+            ConfigureUiSprite("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/UI board Medium Set.png");
+            ConfigureUiSprite("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/TextBTN_Medium.png");
+            ConfigureUiSprite("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/TextBTN_Medium_Pressed.png");
+            ConfigureUiSprite("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/UI board Small Set.png");
+            Sprite woodenPanel = LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/UI board Medium Set.png");
+            Sprite woodenButton = LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/TextBTN_Medium.png");
+            Sprite woodenButtonPressed = LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/TextBTN_Medium_Pressed.png");
+            Sprite woodenBar = LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/UI board Small Set.png");
+            game.uiPanelSprite = woodenPanel;
+            game.uiButtonSprite = woodenButton;
+            game.uiButtonPressedSprite = woodenButtonPressed;
 
             var streamer = gameObject.AddComponent<UdderWorldStreamer>();
             streamer.target = playerObject.transform;
@@ -98,10 +133,21 @@ namespace UdderDestruction.Editor
             streamer.waterSprite = LoadSprite("Assets/Farming Asset Pack/farming-water.png", "farming-water_0");
             streamer.barnSprite = LoadSprite("Assets/Farming Asset Pack/farming-houses.png", "farming-houses_0");
 
+            TMP_FontAsset pixelFont = LoadAsset<TMP_FontAsset>("Assets/PixelBattleText/Fonts/Alphapix.asset");
+            game.uiFont = pixelFont;
+
             var hud = gameObject.AddComponent<UdderHud>();
             hud.game = game;
             hud.player = player;
-            hud.font = LoadAsset<TMP_FontAsset>("Assets/PixelBattleText/Fonts/Alphapix.asset");
+            hud.font = pixelFont;
+            hud.panelSprite = woodenPanel;
+            hud.buttonSprite = woodenButton;
+            hud.buttonPressedSprite = woodenButtonPressed;
+            hud.barSprite = woodenBar;
+            BuildHudCanvas(hud);
+            hud.ApplyWoodenSkin();
+            BuildEventSystem();
+            BuildRuntimeSpawnTemplates(game);
 
             BuildBattleTextCanvas();
 
@@ -123,7 +169,7 @@ namespace UdderDestruction.Editor
             Sprite tile = LoadSprite("Assets/Farming Asset Pack/farming-tileset.png", "farming-tileset_0");
             Sprite water = LoadSprite("Assets/Farming Asset Pack/farming-water.png", "farming-water_0");
             Sprite house = LoadSprite("Assets/Farming Asset Pack/farming-houses.png", "farming-houses_0");
-            Sprite solid = GetSolidSprite();
+            Sprite solid = GetSolidSprite("Assets/UdderDestruction/SolidPixel.png");
 
             GameObject baseObject = new GameObject("Continuous Pasture Base");
             baseObject.transform.position = new Vector3(0f, 0f, 1f);
@@ -179,9 +225,315 @@ namespace UdderDestruction.Editor
             controller.snapToPixelGrid = true;
         }
 
-        private static Sprite GetSolidSprite()
+        private static void BuildEventSystem()
         {
-            const string path = "Assets/UdderDestruction/SolidPixel.png";
+            GameObject eventSystemObject = new GameObject("EventSystem");
+            eventSystemObject.AddComponent<EventSystem>();
+#if ENABLE_INPUT_SYSTEM
+            var inputModule = eventSystemObject.AddComponent<InputSystemUIInputModule>();
+            inputModule.AssignDefaultActions();
+#else
+            eventSystemObject.AddComponent<StandaloneInputModule>();
+#endif
+        }
+
+        private static void BuildHudCanvas(UdderHud hud)
+        {
+            GameObject canvasObject = new("Udder HUD Canvas");
+            var canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = canvasObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280f, 720f);
+            canvasObject.AddComponent<GraphicRaycaster>();
+
+            Image healthFill = CreateHudBar(canvasObject.transform, "HEALTH", new Vector2(22f, -22f), new Color(0.9f, 0.04f, 0.04f), 1f);
+            Image bovinityFill = CreateHudBar(canvasObject.transform, "BOVINITY", new Vector2(22f, -58f), new Color(1f, 0.86f, 0.08f), 0f);
+            TMP_Text statusText = CreateHudText(canvasObject.transform, "STATUS", new Vector2(22f, -98f), 18, TextAlignmentOptions.Left);
+            TMP_Text hintText = CreateHudText(canvasObject.transform, "WASD/ARROWS MOVE. ATTACKS FIRE ON THEIR OWN TIMERS.", new Vector2(22f, 24f), 15, TextAlignmentOptions.Left);
+            hintText.rectTransform.anchorMin = new Vector2(0f, 0f);
+            hintText.rectTransform.anchorMax = new Vector2(0f, 0f);
+            hintText.rectTransform.pivot = new Vector2(0f, 0f);
+
+            GameObject powerChoicePanel = BuildPowerChoicePanel(canvasObject.transform, out List<Button> powerChoiceButtons);
+            hud.BindInspectableElements(healthFill, bovinityFill, statusText, hintText, powerChoicePanel, powerChoiceButtons);
+        }
+
+        private static void BuildRuntimeSpawnTemplates(UdderGameController game)
+        {
+            GameObject root = new("Runtime Spawn Templates");
+            root.SetActive(false);
+
+            CreateProjectileTemplate(root.transform, "Whole Milk Shot Template", game.wholeMilkSprite, Color.white, MilkMode.WholeMilk, 6f);
+            CreateProjectileTemplate(root.transform, "Buttermilk Shot Template", game.buttermilkSprite, Color.white, MilkMode.Buttermilk, 9.9f);
+            CreateProjectileTemplate(root.transform, "Spoiled Milk Shot Template", game.bottleSprite, new Color(0.55f, 1f, 0.45f), MilkMode.SpoiledMilk, 6f);
+            CreateProjectileTemplate(root.transform, "Raw Milk Shot Template", game.rawMilkSprite, Color.white, MilkMode.RawMilk, 5.1f);
+
+            GameObject butter = CreateTemplateSprite(root.transform, "Weaponized Butter Slick Template", game.butterSprite, new Color(1f, 0.84f, 0.12f, 0.72f), Vector3.one, -1);
+            var butterCollider = butter.AddComponent<BoxCollider2D>();
+            butterCollider.isTrigger = true;
+            butterCollider.size = Vector2.one;
+            butter.AddComponent<UdderButterSlick>();
+
+            GameObject dairyAir = CreateTemplateSprite(root.transform, "Dairy Air Cloud Template", GetSolidSprite("Assets/UdderDestruction/SolidPixel.png"), new Color(1f, 1f, 1f, 0f), Vector3.one, 3);
+            BuildDairyAirTemplateSprites(dairyAir.transform, game.dairyAirSprite);
+            var dairyAirCollider = dairyAir.AddComponent<CircleCollider2D>();
+            dairyAirCollider.isTrigger = true;
+            dairyAirCollider.radius = 0.55f;
+            dairyAir.AddComponent<UdderDairyAirCloud>();
+
+            GameObject pool = CreateTemplateSprite(root.transform, "Spoiled Milk Puddle Template", game.spoiledPuddleSprite ? game.spoiledPuddleSprite : game.wholeMilkSprite, new Color(0.42f, 0.95f, 0.32f, 0.62f), Vector3.one * 1.7f, 1);
+            var poolCollider = pool.AddComponent<CircleCollider2D>();
+            poolCollider.isTrigger = true;
+            poolCollider.radius = 0.75f;
+            var poolComponent = pool.AddComponent<UdderHazardPool>();
+            poolComponent.life = 3f;
+            poolComponent.radius = poolCollider.radius;
+
+            CreateEnemyTemplate(root.transform, "Hostile Ham Template", game, game.pigSprite, game.pigDownSprite, game.pigSideSprite, game.pigUpSprite, 0.78f, false);
+            CreateEnemyTemplate(root.transform, "Debt Chicken Template", game, game.chickenSprite, game.chickenDownSprite, game.chickenSideSprite, game.chickenUpSprite, 0.39f, false);
+            CreateEnemyTemplate(root.transform, "Miyamoto Moosashi Template", game, game.bossCowSprite, game.bossCowDownSprite, game.bossCowSideSprite, game.bossCowUpSprite, 1.17f, true);
+
+            GameObject dolphin = CreateTemplateSprite(root.transform, "Pond Dolphin Template", game.dolphinSprite, Color.white, Vector3.one, 4);
+            dolphin.AddComponent<UdderDolphinSurface>();
+
+            GameObject urchin = CreateTemplateSprite(root.transform, "Hostile Sea Urchin Template", game.seaUrchinSprite, Color.white, Vector3.one, 6);
+            var urchinCollider = urchin.AddComponent<CircleCollider2D>();
+            urchinCollider.isTrigger = true;
+            urchinCollider.radius = 0.18f;
+            var urchinBody = urchin.AddComponent<Rigidbody2D>();
+            urchinBody.gravityScale = 0f;
+            urchinBody.bodyType = RigidbodyType2D.Kinematic;
+            urchinBody.freezeRotation = true;
+            urchin.AddComponent<UdderSeaUrchin>();
+
+            CreateTemplateSprite(root.transform, "Raw Milk Fly Visual Template", game.rawMilkFlySprite, Color.white, Vector3.one * 0.25f, 7);
+            CreateTemplateSprite(root.transform, "Death Cotton Visual Template", game.cottonDeathSprite, Color.white, Vector3.one, 5);
+            CreateTemplateSprite(root.transform, "Death Skull Visual Template", game.skullDeathSprite, Color.white, Vector3.one, 5);
+
+            CreatePickupTemplate(root.transform, "Minor MOOna Pickup Template", game.minorMoonaSprite, PickupType.MinorMoona, Color.white, 1);
+            CreatePickupTemplate(root.transform, "Normal MOOna Pickup Template", game.normalMoonaSprite, PickupType.NormalMoona, Color.white, 2);
+            CreatePickupTemplate(root.transform, "Remarkable MOOna Pickup Template", game.remarkableMoonaSprite, PickupType.RemarkableMoona, Color.white, 5);
+            CreatePickupTemplate(root.transform, "Elysian MOOna Pickup Template", game.elysianMoonaSprite, PickupType.ElysianMoona, Color.white, 10);
+            CreatePickupTemplate(root.transform, "Cranberry Heal Pickup Template", game.cranberrySprite, PickupType.Cranberry, Color.white, 1);
+            CreatePickupTemplate(root.transform, "Strawberry Heal Pickup Template", game.strawberrySprite, PickupType.Strawberry, Color.white, 1);
+            CreatePickupTemplate(root.transform, "Raspberry Heal Pickup Template", game.raspberrySprite, PickupType.Raspberry, Color.white, 1);
+            CreatePickupTemplate(root.transform, "Blackberries Heal Pickup Template", game.blackberriesSprite, PickupType.Blackberries, Color.white, 1);
+            CreatePickupTemplate(root.transform, "Dairy Double Pickup Template", game.cheeseSprite, PickupType.DairyDouble, new Color(1f, 0.92f, 0.25f), 1);
+        }
+
+        private static void CreateProjectileTemplate(Transform parent, string name, Sprite sprite, Color color, MilkMode mode, float damage)
+        {
+            GameObject projectile = CreateTemplateSprite(parent, name, sprite, color, Vector3.one * 1.8f, 5);
+            var collider = projectile.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.22f;
+            var body = projectile.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            var component = projectile.AddComponent<UdderProjectile>();
+            component.mode = mode;
+            component.damage = damage;
+        }
+
+        private static void BuildDairyAirTemplateSprites(Transform parent, Sprite sprite)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    GameObject tile = new("Dairy Air Puff");
+                    tile.transform.SetParent(parent, false);
+                    tile.transform.localPosition = new Vector3(x * 0.34f, y * 0.34f, 0f);
+                    tile.transform.localScale = Vector3.one * 0.72f;
+                    var renderer = tile.AddComponent<SpriteRenderer>();
+                    renderer.sprite = sprite;
+                    renderer.color = new Color(0.92f, 0.96f, 1f, 0.42f);
+                    renderer.sortingOrder = 3;
+                }
+            }
+        }
+
+        private static void CreateEnemyTemplate(Transform parent, string name, UdderGameController game, Sprite sprite, Sprite downSprite, Sprite sideSprite, Sprite upSprite, float height, bool boss)
+        {
+            GameObject enemyObject = CreateTemplateSprite(parent, name, sprite, Color.white, Vector3.one, boss ? 5 : 4);
+            ScaleSpriteToHeight(enemyObject.transform, sprite, height);
+            var body = enemyObject.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            var collider = enemyObject.AddComponent<CircleCollider2D>();
+            collider.radius = boss ? 0.34f : 0.28f;
+            var enemy = enemyObject.AddComponent<UdderEnemy>();
+            enemy.downSprite = downSprite;
+            enemy.sideSprite = sideSprite;
+            enemy.upSprite = upSprite;
+            enemy.rawMilkFlySprite = game.rawMilkFlySprite;
+            enemy.cottonDeathSprite = game.cottonDeathSprite;
+            enemy.skullDeathSprite = game.skullDeathSprite;
+            enemy.avoidsWater = true;
+            enemy.IsBoss = boss;
+            enemy.maxHealth = boss ? 520f : 11f;
+            enemy.speed = boss ? 1.55f : 1.75f;
+            enemy.contactDamage = boss ? 16f : 8f;
+            enemy.creamValue = boss ? 30 : 2;
+        }
+
+        private static void CreatePickupTemplate(Transform parent, string name, Sprite sprite, PickupType type, Color color, int amount)
+        {
+            GameObject pickupObject = CreateTemplateSprite(parent, name, sprite, color, Vector3.one * 1.8f, 6);
+            var collider = pickupObject.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.22f;
+            var pickup = pickupObject.AddComponent<UdderPickup>();
+            pickup.type = type;
+            pickup.amount = amount;
+        }
+
+        private static GameObject CreateTemplateSprite(Transform parent, string name, Sprite sprite, Color color, Vector3 scale, int sortingOrder)
+        {
+            GameObject template = new(name);
+            template.transform.SetParent(parent, false);
+            template.transform.localScale = scale;
+            var renderer = template.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite ? sprite : GetSolidSprite("Assets/UdderDestruction/SolidPixel.png");
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            return template;
+        }
+
+        private static void ScaleSpriteToHeight(Transform target, Sprite sprite, float worldHeight)
+        {
+            if (!sprite || sprite.bounds.size.y <= 0f)
+            {
+                target.localScale = Vector3.one;
+                return;
+            }
+
+            float scale = worldHeight / sprite.bounds.size.y;
+            target.localScale = Vector3.one * scale;
+        }
+
+        private static GameObject BuildPowerChoicePanel(Transform parent, out List<Button> powerChoiceButtons)
+        {
+            GameObject panel = new("Bovinity Power Choices");
+            panel.transform.SetParent(parent, false);
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(620f, 240f);
+
+            var back = panel.AddComponent<Image>();
+            back.color = new Color(0f, 0f, 0f, 0.82f);
+
+            TMP_Text title = CreateHudText(panel.transform, "BOVINITY LEVEL UP", new Vector2(0f, -18f), 24, TextAlignmentOptions.Center);
+            title.rectTransform.anchorMin = new Vector2(0f, 1f);
+            title.rectTransform.anchorMax = new Vector2(1f, 1f);
+            title.rectTransform.pivot = new Vector2(0.5f, 1f);
+            title.rectTransform.sizeDelta = new Vector2(0f, 38f);
+
+            powerChoiceButtons = new List<Button>();
+            for (int i = 0; i < 3; i++)
+                powerChoiceButtons.Add(CreatePowerChoiceButton(panel.transform, new Vector2(-200f + i * 200f, -122f)));
+
+            panel.SetActive(false);
+            return panel;
+        }
+
+        private static Button CreatePowerChoiceButton(Transform parent, Vector2 anchoredPosition)
+        {
+            GameObject buttonObject = new("Power Choice");
+            buttonObject.transform.SetParent(parent, false);
+            var rect = buttonObject.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(172f, 96f);
+
+            var image = buttonObject.AddComponent<Image>();
+            image.color = new Color(1f, 0.86f, 0.12f, 0.92f);
+
+            var button = buttonObject.AddComponent<Button>();
+            ColorBlock colors = button.colors;
+            colors.highlightedColor = new Color(1f, 0.96f, 0.45f, 1f);
+            colors.pressedColor = new Color(0.92f, 0.62f, 0.08f, 1f);
+            button.colors = colors;
+
+            TMP_Text label = CreateHudText(buttonObject.transform, "POWER", new Vector2(0f, -18f), 18, TextAlignmentOptions.Center);
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            label.rectTransform.anchoredPosition = Vector2.zero;
+            label.rectTransform.sizeDelta = Vector2.zero;
+            label.color = Color.black;
+            label.outlineWidth = 0f;
+
+            return button;
+        }
+
+        private static Image CreateHudBar(Transform parent, string label, Vector2 anchoredPosition, Color fillColor, float fillAmount)
+        {
+            GameObject back = new(label + " Back");
+            back.transform.SetParent(parent, false);
+            var backRect = back.AddComponent<RectTransform>();
+            backRect.anchorMin = new Vector2(0f, 1f);
+            backRect.anchorMax = new Vector2(0f, 1f);
+            backRect.pivot = new Vector2(0f, 1f);
+            backRect.anchoredPosition = anchoredPosition;
+            backRect.sizeDelta = new Vector2(300f, 26f);
+            var backImage = back.AddComponent<Image>();
+            backImage.color = new Color(0f, 0f, 0f, 0.72f);
+
+            GameObject fill = new(label + " Fill");
+            fill.transform.SetParent(back.transform, false);
+            var fillRect = fill.AddComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.pivot = new Vector2(0f, 0.5f);
+            fillRect.offsetMin = new Vector2(3f, 3f);
+            fillRect.offsetMax = new Vector2(-3f, -3f);
+            var fillImage = fill.AddComponent<Image>();
+            fillImage.color = fillColor;
+            fillImage.type = Image.Type.Simple;
+            fillRect.localScale = new Vector3(fillAmount, 1f, 1f);
+
+            TMP_Text text = CreateHudText(back.transform, label, new Vector2(8f, -4f), 16, TextAlignmentOptions.Left);
+            text.rectTransform.anchorMin = new Vector2(0f, 1f);
+            text.rectTransform.anchorMax = new Vector2(1f, 1f);
+            text.rectTransform.sizeDelta = new Vector2(0f, 24f);
+            return fillImage;
+        }
+
+        private static TMP_Text CreateHudText(Transform parent, string text, Vector2 anchoredPosition, int size, TextAlignmentOptions alignment)
+        {
+            GameObject textObject = new("HUD " + text);
+            textObject.transform.SetParent(parent, false);
+            var rect = textObject.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(1120f, 34f);
+
+            var tmp = textObject.AddComponent<TextMeshProUGUI>();
+            tmp.font = LoadAsset<TMP_FontAsset>("Assets/PixelBattleText/Fonts/Alphapix.asset");
+            tmp.fontSize = size;
+            tmp.alignment = alignment;
+            tmp.text = text;
+            tmp.color = Color.white;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.outlineWidth = 0.18f;
+            tmp.outlineColor = Color.black;
+            return tmp;
+        }
+
+        private static Sprite GetSolidSprite(string path)
+        {
             Directory.CreateDirectory("Assets/UdderDestruction");
 
             if (!File.Exists(path))
@@ -196,6 +548,7 @@ namespace UdderDestruction.Editor
 
             var importer = (TextureImporter)AssetImporter.GetAtPath(path);
             importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = 1f;
             importer.filterMode = FilterMode.Point;
             importer.SaveAndReimport();
@@ -221,6 +574,19 @@ namespace UdderDestruction.Editor
                 return;
 
             importer.filterMode = FilterMode.Point;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+        }
+
+        private static void ConfigureUiSprite(string path)
+        {
+            if (AssetImporter.GetAtPath(path) is not TextureImporter importer)
+                return;
+
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.filterMode = FilterMode.Bilinear;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.mipmapEnabled = false;
             importer.SaveAndReimport();
