@@ -298,6 +298,12 @@ namespace UdderDestruction
                     game.BankDairyDouble();
                     game.ShowCowText(transform.position, "DAIRY DOUBLE BANKED");
                     break;
+                case PickupType.Honeycomb:
+                    game.AddBovinity(10);
+                    ShowBerryHealing(0.4f);
+                    game.AttractAllDropsToPlayer();
+                    game.ShowCowText(transform.position, "SWEET!");
+                    break;
             }
         }
 

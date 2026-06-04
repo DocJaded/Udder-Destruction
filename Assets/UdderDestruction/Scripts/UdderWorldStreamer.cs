@@ -13,6 +13,16 @@ namespace UdderDestruction
         public GameObject grassTilePrefab;
         public GameObject pondTilePrefab;
         public GameObject barnPrefab;
+
+        [Header("Cosmetic Flowers")]
+        public Sprite[] flowerSprites;
+        [Range(0f, 1f)] public float flowerChancePerTile = 0.16f;
+        [Range(0f, 1f)] public float secondFlowerChance = 0.12f;
+        [Range(0, 2)] public int maxFlowersPerTile = 2;
+        [Range(0.5f, 2f)] public float flowerScale = 1f;
+        [Range(0f, 0.45f)] public float flowerPlacementRadius = 0.38f;
+        public int flowerSeed = 1729;
+
         public float tileScale = 3.2f;
         public int tileRadiusX = 18;
         public int tileRadiusY = 12;
@@ -95,6 +105,58 @@ namespace UdderDestruction
             renderer.color = new Color(0.5f, 0.76f, 0.32f);
             renderer.sortingOrder = -5;
             grassTiles.Add(key, tile);
+            AddCosmeticFlowers(tile, key);
+        }
+
+        private void AddCosmeticFlowers(GameObject tile, Vector2Int key)
+        {
+            int flowerLimit = Mathf.Clamp(maxFlowersPerTile, 0, 2);
+            if (!tile || flowerLimit == 0 || flowerSprites == null || flowerSprites.Length == 0)
+                return;
+
+            var random = new System.Random(GetFlowerSeed(key));
+            if (random.NextDouble() > flowerChancePerTile)
+                return;
+
+            CreateCosmeticFlower(tile.transform, random, 1);
+            if (flowerLimit > 1 && random.NextDouble() <= secondFlowerChance)
+                CreateCosmeticFlower(tile.transform, random, 2);
+        }
+
+        private void CreateCosmeticFlower(Transform tile, System.Random random, int number)
+        {
+            Sprite sprite = flowerSprites[random.Next(flowerSprites.Length)];
+            if (!sprite)
+                return;
+
+            var flower = new GameObject($"Flower {number} - {sprite.name}");
+            flower.transform.SetParent(tile, false);
+
+            float worldOffsetX = Mathf.Lerp(-flowerPlacementRadius, flowerPlacementRadius, (float)random.NextDouble());
+            float worldOffsetY = Mathf.Lerp(-flowerPlacementRadius, flowerPlacementRadius, (float)random.NextDouble());
+            Vector3 tileScale = tile.lossyScale;
+            flower.transform.localPosition = new Vector3(
+                tileScale.x != 0f ? worldOffsetX / tileScale.x : 0f,
+                tileScale.y != 0f ? worldOffsetY / tileScale.y : 0f,
+                -0.01f);
+            flower.transform.localScale = new Vector3(
+                tileScale.x != 0f ? flowerScale / tileScale.x : flowerScale,
+                tileScale.y != 0f ? flowerScale / tileScale.y : flowerScale,
+                1f);
+
+            var renderer = flower.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = -4;
+        }
+
+        private int GetFlowerSeed(Vector2Int key)
+        {
+            unchecked
+            {
+                int hash = flowerSeed;
+                hash = (hash * 397) ^ key.x;
+                return (hash * 397) ^ key.y;
+            }
         }
 
         private void CreatePondTile(Vector2Int key)

@@ -73,6 +73,8 @@ namespace UdderDestruction
         public bool IsRawMilkContagious => rawMilkTimer > 0f && !IsBoss;
         public bool IsPrionInfected => prionTimer > 0f;
         public bool IsBoss { get; set; }
+        public bool IsInvulnerable { get; set; }
+        public bool UsesCustomMovement { get; set; }
 
         public void Init(UdderGameController owner, UdderPlayer target, float healthScale, float speedScale)
         {
@@ -113,7 +115,7 @@ namespace UdderDestruction
                 return;
 
             UdderEnemy prionTarget = IsPrionInfected ? game.FindNearestPrionTarget(this) : null;
-            Vector3 targetPosition = player.transform.position;
+            Vector3 targetPosition = UsesCustomMovement ? transform.position : player.transform.position;
             if (IsPrionInfected)
                 targetPosition = prionTarget ? prionTarget.transform.position : transform.position;
             Vector2 delta = targetPosition - transform.position;
@@ -361,6 +363,9 @@ namespace UdderDestruction
 
         public bool StartButterSlide(float duration, float multiplier)
         {
+            if (IsInvulnerable)
+                return false;
+
             if (slideTimer > duration * 0.4f)
                 return false;
 
@@ -370,7 +375,7 @@ namespace UdderDestruction
             if (slipTextCooldown <= 0f)
             {
                 slipTextCooldown = 1f;
-                game.ShowCowText(transform.position, "Whoopsie!");
+                game.ShowEnemyDebuffText(transform, "Whoopsie!");
             }
 
             return true;
@@ -384,25 +389,34 @@ namespace UdderDestruction
 
         public void MakeLactoseIntolerant(float duration)
         {
+            if (IsInvulnerable)
+                return;
+
             bool wasTolerant = lactoseTimer <= 0f;
             lactoseTimer = Mathf.Max(lactoseTimer, duration);
             if (wasTolerant)
-                game.ShowCowText(transform.position, "Lactose Intolerance!");
+                game.ShowEnemyDebuffText(transform, "Lactose Intolerance!");
         }
 
         private void ApplyRawMilk(bool contagiousSpread)
         {
+            if (IsInvulnerable)
+                return;
+
             bool wasHealthy = rawMilkTimer <= 0f;
             rawMilkTimer = Mathf.Max(rawMilkTimer, contagiousSpread ? 3.8f : 5.2f);
             if (!IsBoss)
                 rawMilkHoldTimer = Mathf.Max(rawMilkHoldTimer, contagiousSpread ? 0.65f : 1.35f);
             rawMilkTick = Mathf.Min(rawMilkTick <= 0f ? 0.55f : rawMilkTick, 0.55f);
             if (wasHealthy)
-                game.ShowCowText(transform.position, "Diseased!");
+                game.ShowEnemyDebuffText(transform, "Diseased!");
         }
 
         public void ApplyCondensedMilk(float attackDamage, int level, MilkMode sourceMode)
         {
+            if (IsInvulnerable)
+                return;
+
             float duration = Mathf.Max(0.1f, level * 0.3f);
             float totalDamage = attackDamage * level * 0.1f;
             condensedMilkTimer = Mathf.Max(condensedMilkTimer, duration);
@@ -426,12 +440,12 @@ namespace UdderDestruction
                 spriteRenderer.color = new Color(1f, 0.96f, 0.35f);
             UpdatePrionIndicator();
             if (!wasInfected)
-                game.ShowCowText(transform.position, "Infected!");
+                game.ShowEnemyDebuffText(transform, "Infected!");
         }
 
         public bool TakePrionDamage(float amount)
         {
-            if (health <= 0f)
+            if (health <= 0f || IsInvulnerable)
                 return false;
 
             health -= amount;
@@ -480,7 +494,7 @@ namespace UdderDestruction
 
         private void TakeHornDamage(float amount)
         {
-            if (health <= 0f)
+            if (health <= 0f || IsInvulnerable)
                 return;
 
             health -= amount;
@@ -497,7 +511,7 @@ namespace UdderDestruction
 
         public void TakeDamage(float amount, MilkMode mode, bool canCrit = true, int effectLevel = 1)
         {
-            if (health <= 0f)
+            if (health <= 0f || IsInvulnerable)
                 return;
 
             bool crit = canCrit && Random.value < game.CritChance;

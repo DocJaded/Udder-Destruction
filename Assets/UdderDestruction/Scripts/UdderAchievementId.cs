@@ -20,6 +20,7 @@ namespace UdderDestruction
         Cow,
         Dolphin,
         AlGore,
+        Bee,
     }
 
     public enum UdderGameMode

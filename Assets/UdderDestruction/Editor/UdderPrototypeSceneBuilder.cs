@@ -111,6 +111,9 @@ namespace UdderDestruction.Editor
             game.prionProjectileSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/540_Platinum_Gear.png");
             game.dolphinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/70_Mammal_Dolphin.png");
             game.seaUrchinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/114_Echinodermata_SeaUrchin.png");
+            game.beeatriceSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/21_Wasp.png");
+            game.beeDroneSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/22_Bee_Drone.png");
+            game.honeycombSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/30_Honeycomb.png");
             game.damageText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_damage.asset");
             game.critText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_crit.asset");
             game.healText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_healing.asset");
@@ -136,6 +139,7 @@ namespace UdderDestruction.Editor
             streamer.grassSprite = LoadSprite("Assets/Farming Asset Pack/farming-tileset.png", "farming-tileset_0");
             streamer.waterSprite = LoadSprite("Assets/Farming Asset Pack/farming-water.png", "farming-water_0");
             streamer.barnSprite = LoadSprite("Assets/Farming Asset Pack/farming-houses.png", "farming-houses_0");
+            streamer.flowerSprites = LoadFlowerSprites();
 
             TMP_FontAsset uiFont = GetWoodenTmpFontAsset();
             game.uiFont = uiFont;
@@ -212,6 +216,8 @@ namespace UdderDestruction.Editor
             game.chickenEnemyPrefab = SaveEnemyPrefab($"{folder}/Debt Chicken.prefab", game.chickenSprite, game.chickenDownSprite, game.chickenSideSprite, game.chickenUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 4);
             game.pigEnemyPrefab = SaveEnemyPrefab($"{folder}/Hostile Ham.prefab", game.pigSprite, game.pigDownSprite, game.pigSideSprite, game.pigUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.13f, new Vector2(0f, -0.02f), 4);
             game.bossEnemyPrefab = SaveEnemyPrefab($"{folder}/Miyamoto Moosashi.prefab", game.bossCowSprite ? game.bossCowSprite : game.cowSprite, game.bossCowDownSprite, game.bossCowSideSprite, game.bossCowUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5);
+            game.beeatriceBossPrefab = ConfigureBeeatricePrefab(SaveEnemyPrefab($"{folder}/BEEatrice.prefab", game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5));
+            game.beeDronePrefab = ConfigureBeeDronePrefab(SaveEnemyPrefab($"{folder}/BEEatrice Drone.prefab", game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 5));
             game.wholeMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Whole Milk Shot.prefab", game.wholeMilkSprite ? game.wholeMilkSprite : game.bottleSprite, Color.white);
             game.buttermilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Buttermilk Shot.prefab", game.buttermilkSprite ? game.buttermilkSprite : game.bottleSprite, Color.white);
             game.spoiledMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Spoiled Milk Shot.prefab", game.bottleSprite, new Color(0.55f, 1f, 0.45f));
@@ -268,6 +274,108 @@ namespace UdderDestruction.Editor
             EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
             AssetDatabase.SaveAssets();
             Debug.Log("Prion Infection projectile prefab built and assigned.");
+        }
+
+        [MenuItem("Udder Destruction/Assign Flower Sprites")]
+        public static void AssignFlowerSprites()
+        {
+            if (!EditorSceneManager.GetActiveScene().isLoaded || string.IsNullOrEmpty(EditorSceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+
+            UdderWorldStreamer streamer = Object.FindFirstObjectByType<UdderWorldStreamer>();
+            if (!streamer)
+            {
+                Debug.LogError("Cannot assign flower sprites: scene needs an UdderWorldStreamer.");
+                return;
+            }
+
+            streamer.flowerSprites = LoadFlowerSprites();
+            EditorUtility.SetDirty(streamer);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log($"Assigned {streamer.flowerSprites.Length} cosmetic flower sprites.");
+        }
+
+        [MenuItem("Udder Destruction/Build BEEatrice Assets")]
+        public static void BuildBeeatriceAssets()
+        {
+            if (!EditorSceneManager.GetActiveScene().isLoaded || string.IsNullOrEmpty(EditorSceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+
+            UdderGameController game = Object.FindFirstObjectByType<UdderGameController>();
+            if (!game)
+            {
+                Debug.LogError("Cannot build BEEatrice assets: scene needs an UdderGameController.");
+                return;
+            }
+
+            const string folder = "Assets/UdderDestruction/Prefabs";
+            Directory.CreateDirectory(folder);
+            game.beeatriceSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/21_Wasp.png");
+            game.beeDroneSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/22_Bee_Drone.png");
+            game.honeycombSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/30_Honeycomb.png");
+            game.beeatriceBossPrefab = ConfigureBeeatricePrefab(SaveEnemyPrefab($"{folder}/BEEatrice.prefab", game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5));
+            game.beeDronePrefab = ConfigureBeeDronePrefab(SaveEnemyPrefab($"{folder}/BEEatrice Drone.prefab", game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 5));
+
+            EditorUtility.SetDirty(game);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log("BEEatrice sprites and prefabs built and assigned.");
+        }
+
+        private static Sprite[] LoadFlowerSprites()
+        {
+            const string folder = "Assets/Admurin's Pixel Items/PixelItems/Flowers/Singles";
+            string[] guids = AssetDatabase.FindAssets("t:Sprite", new[] { folder });
+            var paths = new List<string>(guids.Length);
+            foreach (string guid in guids)
+                paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+
+            paths.Sort(System.StringComparer.Ordinal);
+            var sprites = new List<Sprite>(paths.Count);
+            foreach (string path in paths)
+            {
+                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                if (sprite)
+                    sprites.Add(sprite);
+            }
+
+            return sprites.ToArray();
+        }
+
+        private static GameObject ConfigureBeeatricePrefab(GameObject prefab)
+        {
+            var enemy = prefab.GetComponent<UdderEnemy>();
+            ScaleSpriteToHeight(prefab.transform, prefab.GetComponent<SpriteRenderer>().sprite, 1.17f);
+            enemy.maxHealth = 480f;
+            enemy.speed = 1.55f;
+            enemy.contactDamage = 16f;
+            enemy.creamValue = 30;
+            enemy.enemyKind = UdderEnemyKind.Bee;
+            enemy.bossType = UdderBossType.Beeatrice;
+            enemy.isFlying = true;
+            if (!prefab.GetComponent<UdderBeeSwarmController>())
+                prefab.AddComponent<UdderBeeSwarmController>();
+            PrefabUtility.SavePrefabAsset(prefab);
+            return prefab;
+        }
+
+        private static GameObject ConfigureBeeDronePrefab(GameObject prefab)
+        {
+            var enemy = prefab.GetComponent<UdderEnemy>();
+            ScaleSpriteToHeight(prefab.transform, prefab.GetComponent<SpriteRenderer>().sprite, 0.39f);
+            enemy.maxHealth = 12f;
+            enemy.speed = 1.55f;
+            enemy.contactDamage = 7f;
+            enemy.creamValue = 1;
+            enemy.enemyKind = UdderEnemyKind.Bee;
+            enemy.isFlying = true;
+            if (!prefab.GetComponent<UdderBeeDrone>())
+                prefab.AddComponent<UdderBeeDrone>();
+            PrefabUtility.SavePrefabAsset(prefab);
+            return prefab;
         }
 
         private static GameObject SaveProjectilePrefab(string path, Sprite sprite, Color color)
@@ -531,7 +639,7 @@ namespace UdderDestruction.Editor
 
             Image healthFill = CreateHudBar(canvasObject.transform, "HEALTH", new Vector2(22f, -22f), new Color(0.9f, 0.04f, 0.04f), 1f);
             Image bovinityFill = CreateHudBar(canvasObject.transform, "BOVINITY", new Vector2(22f, -58f), new Color(1f, 0.86f, 0.08f), 0f);
-            TMP_Text statusText = CreateHudText(canvasObject.transform, "MOOLISSA HOOFMAN WAVE 1 LVL 1 DD 0", new Vector2(22f, -98f), 18, TextAlignmentOptions.Left);
+            TMP_Text statusText = CreateHudText(canvasObject.transform, "MOOLISSA:    WAVE 1        LVL 1         DD 0", new Vector2(22f, -98f), 18, TextAlignmentOptions.Left);
             TMP_Text hintText = CreateHudText(canvasObject.transform, "WASD/ARROWS MOVE. ATTACKS FIRE ON THEIR OWN TIMERS.", new Vector2(22f, 24f), 15, TextAlignmentOptions.Left);
             hintText.rectTransform.anchorMin = new Vector2(0f, 0f);
             hintText.rectTransform.anchorMax = new Vector2(0f, 0f);

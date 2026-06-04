@@ -13,17 +13,26 @@ namespace UdderDestruction
         NormalMoona,
         RemarkableMoona,
         ElysianMoona,
-        DairyDouble
+        DairyDouble,
+        Honeycomb,
     }
 
     public sealed class UdderPickup : MonoBehaviour
     {
         public PickupType type;
         public int amount = 1;
+        private Transform attractionTarget;
 
         private void Update()
         {
             transform.Rotate(0f, 0f, 90f * Time.deltaTime);
+            if (attractionTarget)
+                transform.position = Vector3.MoveTowards(transform.position, attractionTarget.position, 9f * Time.deltaTime);
+        }
+
+        public void AttractTo(Transform target)
+        {
+            attractionTarget = target;
         }
 
         private void OnTriggerEnter2D(Collider2D other)

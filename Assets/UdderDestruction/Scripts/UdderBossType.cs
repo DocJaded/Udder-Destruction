@@ -8,5 +8,6 @@ namespace UdderDestruction
         HughHoofner,
         HolyCow,
         Ruminator,
+        Beeatrice,
     }
 }

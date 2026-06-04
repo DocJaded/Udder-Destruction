@@ -66,9 +66,11 @@ Behavior:
 
 Game-over text sequence:
 1. "Don't cry" fades over 1 second.
-2. "Over" remains.
+2. "Over" remains and reveals a wooden Main Menu button at the bottom of the
+   panel.
 3. "Spilled Milk" fades over 1 second.
 4. "Game" appears above "Over" and remains.
+- The Main Menu button reloads the active scene into its clean main-menu state.
 
 
 POWERS
@@ -182,6 +184,8 @@ Aura Farming
 - No longer has a visual and does not damage enemies.
 - Attracts nearby pickups.
 - Attraction radius equals player collider radius * power level.
+- Once a pickup enters the attraction radius, it continues following the
+  player until collected even if it later leaves the radius.
 
 
 POWER SELECTION AND BOVINITY
@@ -256,6 +260,7 @@ Boss waves occur every 10 waves.
 - Bosses are immune to Prion Infection and status control effects.
 - Bosses can still slip on butter and take damage over time.
 - Bosses have a simple red health bar and black name text above them.
+- Boss-name text is currently 2.5 times larger than its previous size.
 - Defeating a boss displays animated "AU LAIT!" for 5 seconds with alternating
   red and yellow letters.
 
@@ -283,6 +288,17 @@ The Holy Cow
 The Ruminator
 - On first death says "I'll be back".
 - Revives once with double HP and half speed.
+
+BEEatrice
+- Uses the 21_Wasp sprite and is not a cow.
+- Spawns with 12 bee drones using the 22_Bee_Drone sprite.
+- Drones are one-third BEEatrice's height and orbit her while guarding.
+- Three drones at a time attack the player, rotating attack duty every second.
+- BEEatrice is completely immune and excluded from auto-aim until every drone
+  is dead.
+- Defeating BEEatrice drops a honeycomb using 30_Honeycomb.
+- Honeycomb grants +10 Bovinity, heals 40% HP, and attracts every unclaimed
+  pickup on the field to the player.
 
 
 PONDS, DOLPHINS, AND DROWNING
@@ -317,9 +333,14 @@ Main scene UI:
 - Start Game and Exit Game work.
 - Sound Settings, Info, and About exist but are disabled/unimplemented.
 - Escape toggles pause.
-- Pause text: "Paused - Press escape again to resume playing".
+- Pausing clones the editable main-menu overlay so its scene-authored layout
+  and visuals are preserved.
+- The pause menu replaces Start Game with Resume Game and Exit Game with End
+  Game. Resume Game and Escape unpause; End Game reloads to the main menu.
 - HUD INFO Back displays:
-  MOOLISSA HOOFMAN WAVE {wave} LVL {bovinityLevel} DD {bankedDairyDoubles}
+  MOOLISSA:    WAVE {wave}        LVL {bovinityLevel}         DD {bankedDairyDoubles}
+- Runtime HUD updates preserve that
+  manually spaced text format and the scene-authored HUD transforms/styles.
 - Health and Bovinity bars are scene objects and have been manually positioned.
 
 Visual style:
@@ -336,6 +357,12 @@ Current battle-text rules:
 - The animated-text anti-overlap code still exists but is currently commented
   out in UdderGameController.DisplayText.
 - Berry healing displays green healing numbers or "HP Full!".
+- "WAVE CLEARED!" is screen-anchored near the top center with margin.
+- Power-choice buff/result messages are screen-anchored near the bottom center
+  with margin.
+- Enemy debuff messages such as "Infected!", "Diseased!", "Lactose
+  Intolerance!", and "Whoopsie!" are world text above the affected enemy and
+  follow that enemy until they fade.
 
 Important warning:
 - Some overlays still have procedural fallback creation code, including pause
@@ -376,6 +403,8 @@ Important prefabs:
 - Barn Prop.prefab
 - Raw Milk Fly.prefab
 - Prion Anger Indicator.prefab
+- BEEatrice.prefab
+- BEEatrice Drone.prefab
 
 Important source assets:
 - Butter puddle:
@@ -387,6 +416,12 @@ Important source assets:
   sprite 21_Very angry_C
 - Slime animations:
   Assets/War/Slime Enemy - Pixel Art
+- BEEatrice:
+  Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/21_Wasp.png
+- BEEatrice drone:
+  Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/22_Bee_Drone.png
+- Honeycomb:
+  Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/30_Honeycomb.png
 - Wooden UI:
   Assets/Fantasy Wooden GUI  Free
 - Battle text:
@@ -523,6 +558,12 @@ Assets/UdderDestruction/Scripts/UdderEnemy.cs
 
 Assets/UdderDestruction/Scripts/UdderProjectile.cs
 - Milk projectiles and the homing/spinning Prion Infection gear.
+
+Assets/UdderDestruction/Scripts/UdderBeeSwarmController.cs
+- Protects BEEatrice while drones live and rotates groups of three attackers.
+
+Assets/UdderDestruction/Scripts/UdderBeeDrone.cs
+- Moves BEEatrice's drones between player attacks and queen-guarding orbits.
 
 Assets/UdderDestruction/Scripts/UdderWorldStreamer.cs
 - Builds the finite grass arena and pond border from prefabs, registers water,

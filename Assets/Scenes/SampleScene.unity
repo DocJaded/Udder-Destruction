@@ -8908,6 +8908,53 @@ MonoBehaviour:
   grassTilePrefab: {fileID: 1402593460888274261, guid: 4e0fbd09afe909847a34e09d06591268, type: 3}
   pondTilePrefab: {fileID: 1069312376557991597, guid: c4748cefa894c6c48b9f170b0ca3c80a, type: 3}
   barnPrefab: {fileID: 702811719062502704, guid: abae4d4f119123944a03a645608960d7, type: 3}
+  flowerSprites:
+  - {fileID: 21300000, guid: cdcf30f6a6d99b144b5dfcf53133f3b2, type: 3}
+  - {fileID: 21300000, guid: f52a954d39bc03545aadb6b0822f7198, type: 3}
+  - {fileID: 21300000, guid: a73564d8b05a91f4c882997064852b9d, type: 3}
+  - {fileID: 21300000, guid: e54b7571c0c5b4c45a45d47d9219d2b4, type: 3}
+  - {fileID: 21300000, guid: 5456af45dcae3dc4da92466ecf4b3f87, type: 3}
+  - {fileID: 21300000, guid: c9d0f3861dcaa1b4eb9b3f3041d1b716, type: 3}
+  - {fileID: 21300000, guid: dde1dcafc71afd2438801d5876a2d390, type: 3}
+  - {fileID: 21300000, guid: fa395705b33efd24e9bc969f2d446504, type: 3}
+  - {fileID: 21300000, guid: 8ddf337f6980eae44b390a7db7290cf7, type: 3}
+  - {fileID: 21300000, guid: 935bb68e9f8dbde48982deb0b9961dae, type: 3}
+  - {fileID: 21300000, guid: 9843c0108378d064f93c25c5eb94e58b, type: 3}
+  - {fileID: 21300000, guid: dd5d3475c2ce3894fbd94318aa7f2c28, type: 3}
+  - {fileID: 21300000, guid: 7eb76643d1129c54787631dcd3304ebf, type: 3}
+  - {fileID: 21300000, guid: 72c7982209a526f4ca2d85bbf1c82250, type: 3}
+  - {fileID: 21300000, guid: 9fdc1d206a7177344a8c572b7a44e684, type: 3}
+  - {fileID: 21300000, guid: d4868575a68eab8408dffc829770979d, type: 3}
+  - {fileID: 21300000, guid: 504323ca8ba3e3248ab36093b62bb5cf, type: 3}
+  - {fileID: 21300000, guid: 53fd5c3e62b254a45966de162a4c7603, type: 3}
+  - {fileID: 21300000, guid: 4e006914cf3aee5418b5f3ad7390663e, type: 3}
+  - {fileID: 21300000, guid: 277f8f0ac9e6bc34d88ba296c8bd53da, type: 3}
+  - {fileID: 21300000, guid: b4c0d84cf591da1439e31cd6b045a0a8, type: 3}
+  - {fileID: 21300000, guid: 7ffab7095d714814cbe6e9f2c57dd6b0, type: 3}
+  - {fileID: 21300000, guid: a2be7387a67ec3b47bb377eaf8006207, type: 3}
+  - {fileID: 21300000, guid: b9e018fbef60c2242988d22ebce0f798, type: 3}
+  - {fileID: 21300000, guid: c5ed7d40cb28b5d44a0f8e890c438e9f, type: 3}
+  - {fileID: 21300000, guid: 4d56e71f50c143342820061e839cdbea, type: 3}
+  - {fileID: 21300000, guid: a731b29a067e69e4c9e06562df9dd83e, type: 3}
+  - {fileID: 21300000, guid: e97a4d6467917b04eb37853be4a87f97, type: 3}
+  - {fileID: 21300000, guid: f456d4bb0e3371649b03f13c8c370f12, type: 3}
+  - {fileID: 21300000, guid: 52de1f07dfabd1a44b3f1034d092a080, type: 3}
+  - {fileID: 21300000, guid: b52b56a74750aa94fb9adf6c4f3670ad, type: 3}
+  - {fileID: 21300000, guid: fb18935f9ec3e4348b4ba6d9474ec5d4, type: 3}
+  - {fileID: 21300000, guid: 4476108f6642e634088eb43e904f2851, type: 3}
+  - {fileID: 21300000, guid: baca9775d63c3634e8f2b92774995478, type: 3}
+  - {fileID: 21300000, guid: a1e75d7c035bb4045a57b5ba9b84a949, type: 3}
+  - {fileID: 21300000, guid: bc77146569900b64eaf717cc751c9efe, type: 3}
+  - {fileID: 21300000, guid: 784e9b4901dc51a49a77c576acb5e9c8, type: 3}
+  - {fileID: 21300000, guid: 0c3031a85c1fb2d449ef35922018181c, type: 3}
+  - {fileID: 21300000, guid: 86e72b34eb5222448bf6b23b849e1aa7, type: 3}
+  - {fileID: 21300000, guid: 4668c14aa60b35a489407d5ecaa8cb9d, type: 3}
+  flowerChancePerTile: 0.16
+  secondFlowerChance: 0.12
+  maxFlowersPerTile: 2
+  flowerScale: 1
+  flowerPlacementRadius: 0.38
+  flowerSeed: 1729
   tileScale: 3.2
   tileRadiusX: 18
   tileRadiusY: 12
@@ -8974,6 +9021,9 @@ MonoBehaviour:
   prionProjectileSprite: {fileID: 21300000, guid: c4fc5febd6783cc469ceeee31bd299a6, type: 3}
   dolphinSprite: {fileID: 21300000, guid: 641e36ff7c3d6154db592f396ce07c10, type: 3}
   seaUrchinSprite: {fileID: 21300000, guid: 259a359b089fcf04186d1bdbf154714f, type: 3}
+  beeatriceSprite: {fileID: 21300000, guid: c0f43e961def724458eb8d6b1edce342, type: 3}
+  beeDroneSprite: {fileID: 21300000, guid: 0d7aed220cf64ed47be256460e05b791, type: 3}
+  honeycombSprite: {fileID: 21300000, guid: b523a896916415e43ad07377d609ca22, type: 3}
   damageText: {fileID: 11400000, guid: 34b0e5858b9e6124e8925ef49abfc740, type: 2}
   critText: {fileID: 11400000, guid: b118597d3b399da4db3c6c0721e4d061, type: 2}
   healText: {fileID: 11400000, guid: dadf4163ae4b13b469840f350aa182d1, type: 2}
@@ -8995,6 +9045,8 @@ MonoBehaviour:
   chickenEnemyPrefab: {fileID: 2661652955439845736, guid: 720452c8b5926f6469915e4710dcd98f, type: 3}
   pigEnemyPrefab: {fileID: 6022327116238355521, guid: 455cb612642381943bbad219b98784bb, type: 3}
   bossEnemyPrefab: {fileID: 6027793242075472030, guid: 5aa2d7ac91b0a434193b47cb72cbc109, type: 3}
+  beeatriceBossPrefab: {fileID: 223745930713408526, guid: 81ac38d5374137c42a684812d3d88604, type: 3}
+  beeDronePrefab: {fileID: 5869191826245083144, guid: 11d7e6861e12a6a429ec710fa4181f6a, type: 3}
   wholeMilkProjectilePrefab: {fileID: 3533848579048278014, guid: 75884591f5b84704495af051c361513e, type: 3}
   buttermilkProjectilePrefab: {fileID: 4594638321925087876, guid: 266cc093d3a15f24f8f8f3546412363e, type: 3}
   spoiledMilkProjectilePrefab: {fileID: 3169172518664566093, guid: ddb5bbe70a837a64d9724185b2ea8250, type: 3}

@@ -42,7 +42,7 @@ namespace UdderDestruction
 
             SetBarFill(healthFill, player.Health01);
             SetBarFill(bovinityFill, player.Bovinity01);
-            statusText.text = $"MOOLISSA HOOFMAN WAVE {game.Wave} LVL {player.BovinityLevel} DD {game.BankedDairyDoubles}";
+            statusText.text = $"MOOLISSA:    WAVE {game.Wave}        LVL {player.BovinityLevel}         DD {game.BankedDairyDoubles}";
         }
 
         private static void SetBarFill(Image fill, float amount)
