@@ -21,6 +21,8 @@
 # OS and tool noise
 .DS_Store
 Thumbs.db
+desktop.ini
+desktop.ini.meta
 *.log
 
 # Unity crash dumps and profiler captures

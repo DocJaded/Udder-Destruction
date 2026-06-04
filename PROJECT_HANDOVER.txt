@@ -1,0 +1,598 @@
+UDDER DESTRUCTION - PROJECT HANDOVER
+====================================
+
+Last updated: June 4, 2026
+Project root: C:\Unity\Udder Destruction
+Unity version: 6000.3.7f1
+Primary scene: Assets/Scenes/SampleScene.unity
+Current Git branch: main
+Last committed revision at time of writing:
+4053f18c Add expanded powers and wooden UI skin
+
+
+PURPOSE OF THIS DOCUMENT
+------------------------
+
+This is a practical orientation document for future development conversations.
+It describes the current game, implemented behavior, important code/assets,
+project-specific development rules, known unfinished work, and current risks.
+
+The working tree contains substantial uncommitted work newer than the last
+commit. Do not assume the last commit represents the current game.
+
+
+HIGH-LEVEL GAME
+---------------
+
+Udder Destruction is a top-down survivor-style action game starring Moolissa
+Hoofman. The player moves with WASD or arrow keys while powers fire
+automatically. Defeated enemies award Bovinity and may drop pickups. Filling
+the Bovinity bar pauses the game and offers three randomly selected powers.
+
+The player begins with Stomp level 1. Powers can reach level 10.
+
+The current arena is a finite 100 x 100 grass-tile playing field surrounded by
+a 24-tile-deep pond border. Normal enemies and bosses avoid water. The player
+may enter water, but moves at half speed and takes 15% of maximum HP in
+drowning damage every second.
+
+
+CORE PLAYER BEHAVIOR
+--------------------
+
+Implemented in:
+- Assets/UdderDestruction/Scripts/UdderPlayer.cs
+- Assets/UdderDestruction/Prefabs/Moolissa Player.prefab
+
+Current base values:
+- Max HP: 100
+- Move speed: 4.8
+- Projectile damage: 6
+- Base Stomp damage: 5.5
+- Base Cheese It chance: 1%
+- Maximum power level: 10
+- Starting power: Stomp level 1
+- Starting Bovinity requirement: 5
+- Later Bovinity requirement: 5 * current Bovinity level
+
+Behavior:
+- The cow faces its current movement direction or the last direction moved.
+- Attacks do not fire unless a valid target is within that attack's range.
+- Milk regenerates internally, but the old milk HUD bar has been removed.
+- On reaching 0 HP, Cheese It is rolled.
+- Successful Cheese It restores full HP, grants 2.2 seconds of invulnerability,
+  and displays "Cheesed it!" above the cow for 3 seconds.
+- If Cheese It fails, the game-over sequence runs. Restart is not implemented.
+
+Game-over text sequence:
+1. "Don't cry" fades over 1 second.
+2. "Over" remains.
+3. "Spilled Milk" fades over 1 second.
+4. "Game" appears above "Over" and remains.
+
+
+POWERS
+------
+
+Power definitions and player-facing descriptions:
+- Assets/UdderDestruction/Scripts/MilkMode.cs
+- Assets/UdderDestruction/Scripts/UdderPlayer.cs
+
+ACTIVE / AUTOMATIC POWERS
+
+Stomp
+- Contact damage when an enemy touches the cow.
+- Starts at level 1.
+- Each level adds Stomp damage.
+- Stomp kills use the cotton-then-skull death sequence.
+
+Whole Milk
+- Fast auto-aimed projectile.
+- Base firing interval: 0.38 seconds.
+- Whole Milk sprite is rotated 180 degrees when fired.
+- Its damage multiplier is currently 0.5 before level scaling.
+
+Buttermilk
+- Auto-aimed milk projectile.
+- Base firing interval: 1 second.
+- Makes the target slip in its current/last movement direction.
+- Base slip duration is 1 second, +20% per level after level 1.
+- Buttermilk slips do not count toward the Butter Chicken achievement.
+
+Spoiled Milk
+- One projectile every 5 seconds.
+- Preferentially targets a valid dolphin when one is in range.
+- On ordinary impact, creates a repulsing puddle lasting 5 seconds.
+- Puddles use the slime Idle, Hurt, and Death animations.
+- Puddles cause no damage.
+- Enemies avoid puddles and attempt to leave them immediately.
+- Hitting a dolphin beaches it and pollutes the nearby pond tile.
+- Polluted pond tiles turn green and cannot spawn dolphins until the next wave.
+
+Raw Milk
+- Auto-aimed milk projectile.
+- Base firing interval: 1 second.
+- Applies the "Diseased!" damage-over-time status.
+- Diseased normal enemies can spread Raw Milk disease by contact.
+- Bosses take Raw Milk damage and DoT but are not held or slowed by it.
+
+Butter
+- Drops a single scalable butter slick every 5.5 seconds.
+- Uses Assets/Farming Asset Pack/Butter_Puddle.png.
+- Odd levels increase duration.
+- Even levels increase the size of the single slick.
+- Current world size formula reaches 2.0 x 2.0 at level 10.
+- Current base duration is 8 seconds, +2 seconds per odd upgrade.
+- Butter causes enemies to slide and displays "Whoopsie!".
+
+Dairy Air
+- Creates a cloud every 8.5 seconds.
+- Enemies touched by it become lactose intolerant for the rest of their life.
+- Lactose-intolerant enemies take a 1.65 dairy damage multiplier.
+- Leveling extends cloud life toward 200% uptime.
+
+Prion Infection
+- Fires every 6 seconds at the nearest valid non-boss target within 6.5 units.
+- It is now a homing projectile using 540_Platinum_Gear.
+- Projectile prefab:
+  Assets/UdderDestruction/Prefabs/Prion Infection Gear.prefab
+- Current prefab tuning:
+  speed 5.5, life 2 seconds, spin 240 degrees/second, homing strength 7.
+- The gear rotates around its centered pivot while flying.
+- It ignores dolphins, sea urchins, bosses, and unrelated enemies.
+- Impact applies persistent Prion Infection.
+- Infected enemies take DoT and attack other enemies, including infected ones.
+- Infected enemies display the 21_Very angry sprite over their heads.
+- On infected enemy death, nearby eligible enemies each roll for infection.
+- Spread AoE radius equals the dead enemy's collider diameter.
+- Spread chance is 10% at level 1, +1 percentage point per additional level.
+- Prion DoT is 1 damage/second at level 1, +0.25 per additional level.
+
+
+PASSIVE POWERS
+
+Condensed Milk
+- Whole Milk, Buttermilk, and Raw Milk gain damage over time.
+- Duration: 0.3 seconds per level.
+- Total DoT damage: 10% of the source attack damage per level.
+
+I Like to MOOve It
+- +10% base movement speed per level.
+
+Beefcake
+- +10% current Stomp damage per level.
+- +10% base maximum HP per level.
+
+Legen-dairy!
+- +1 percentage point to Cheese It chance per level.
+
+More Cowbell
+- +10% enemies per wave per level.
+- +10% drop chance multiplier per level.
+
+Maillard Reaction
+- Regenerates 10% HP periodically.
+- Interval improves from 3 seconds toward 1 second by level 10.
+
+Rawhide
+- Level 1 grants 10% damage resistance.
+- Each later level adds 1 percentage point.
+
+Aura Farming
+- No longer has a visual and does not damage enemies.
+- Attracts nearby pickups.
+- Attraction radius equals player collider radius * power level.
+
+
+POWER SELECTION AND BOVINITY
+----------------------------
+
+Implemented in:
+- Assets/UdderDestruction/Scripts/UdderGameController.cs
+- Assets/UdderDestruction/Scripts/UdderHud.cs
+
+- Filling Bovinity pauses gameplay and shows three random powers below level 10.
+- Hovering a choice displays its description panel.
+- Power-choice UI uses the wooden GUI skin and BMYEONSUNG TMP font.
+- A Dairy Double pickup can bank a future +2 power upgrade.
+- A normal upgrade also has a 1% chance to become a Dairy Double.
+- If +2 cannot be applied, the Dairy Double is banked.
+
+
+ENEMIES AND WAVES
+-----------------
+
+Normal enemies:
+- Debt Chicken
+- Hostile Ham
+- Enemy cow escorts
+- Dolphins and sea urchins are special enemies/hazards.
+
+Normal wave behavior:
+- Wave enemy count: ceil((4 + wave * 2) * More Cowbell multiplier).
+- Wave 1 contains chickens only.
+- Pigs begin at wave 5 with a 10% composition ratio.
+- Waves 11-20 use 20% pigs.
+- Pig ratio rises by 10 percentage points each decade, capped at 50%.
+- Spawn interval starts at 1.65 seconds and improves by 0.055 seconds per wave,
+  with a minimum of 0.32 seconds.
+- Enemy speed scales from 0.78 to 1.28 through approximately wave 25.
+- Normal enemies and bosses avoid the pond border.
+- Enemies use light separation so they do not completely overlap.
+
+Normal enemy prefab colliders:
+- Debt Chicken: CircleCollider2D radius 0.12, offset (0, 0).
+- Hostile Ham: CircleCollider2D radius 0.13, offset (0, -0.02).
+- Miyamoto Moosashi/base boss prefab: radius 0.166.
+
+Death visuals:
+- Normal enemies, bosses, and dolphins use cotton followed by skull.
+- "KO" text is no longer used.
+
+Drop roll after a normal enemy death:
+- Minor MOOna: cumulative roll below 20%.
+- Normal MOOna: next 9%.
+- Remarkable MOOna: next 4%.
+- Elysian MOOna: next 1%.
+- Cranberry: next 3.5%.
+- Strawberry: next 2.5%.
+- Raspberry: next 2%.
+- Blackberries: next 2%.
+- Dairy Double: next 3%.
+- More Cowbell increases drop chance through the current roll multiplier.
+
+
+BOSSES
+------
+
+Boss waves occur every 10 waves.
+
+- Wave 10 always uses Miyamoto Moosashi.
+- Later boss waves randomly select from the current boss pool.
+- The first encounter with a boss is boss-only, except inherent escorts.
+- Repeat encounters include normal enemies equal to the current wave number.
+  Those reinforcements use normal spawn timing instead of appearing together.
+- Bosses avoid ponds.
+- Bosses are immune to Prion Infection and status control effects.
+- Bosses can still slip on butter and take damage over time.
+- Bosses have a simple red health bar and black name text above them.
+- Defeating a boss displays animated "AU LAIT!" for 5 seconds with alternating
+  red and yellow letters.
+
+Current boss pool:
+
+Miyamoto Moosashi
+- Always fought at wave 10.
+- Standard current boss behavior.
+
+Lidia
+- Charges toward the player in a straight line.
+- Charge currently has a 0.45-second windup, 0.8-second duration, and 3.6-second
+  cooldown. Charge contact damage is strongly increased.
+
+Bob Moorley
+- Spawns with three chicken escorts.
+
+Hugh Hoofner
+- Spawns with five cow escorts.
+
+The Holy Cow
+- Cannot be attacked.
+- Fully heals the player, fills the Bovinity bar, then leaves.
+
+The Ruminator
+- On first death says "I'll be back".
+- Revives once with double HP and half speed.
+
+
+PONDS, DOLPHINS, AND DROWNING
+-----------------------------
+
+Implemented in:
+- Assets/UdderDestruction/Scripts/UdderWorldStreamer.cs
+- Assets/UdderDestruction/Scripts/UdderGameController.cs
+- Assets/UdderDestruction/Scripts/UdderDolphinSurface.cs
+
+- The arena has no interior ponds.
+- Pond tiles form a continuous 24-tile-deep border around the grass arena.
+- Pond tiles use trigger BoxCollider2D components for water registration.
+- Enemies and bosses strictly avoid water.
+- The player can enter water but is slowed by 50%.
+- The player takes 15% max HP drowning damage every second.
+- Sky-blue "YOU'RE DROWNING!" text appears while drowning.
+- Dolphins spawn only on visible, unpolluted pond tiles within 5 units of the
+  player.
+- Dolphins throw sea urchins only when the player is within 5 units.
+- Dolphins only take direct damage from Stomp.
+- Spoiled Milk beaches a dolphin onto an adjacent grass tile.
+- Beached dolphins stop firing and take dehydration damage until they die.
+- Polluted water resets at the beginning of each wave.
+
+
+UI AND TEXT
+-----------
+
+Main scene UI:
+- The main menu is part of the Canvas and has editable scene GameObjects.
+- Start Game and Exit Game work.
+- Sound Settings, Info, and About exist but are disabled/unimplemented.
+- Escape toggles pause.
+- Pause text: "Paused - Press escape again to resume playing".
+- HUD INFO Back displays:
+  MOOLISSA HOOFMAN WAVE {wave} LVL {bovinityLevel} DD {bankedDairyDoubles}
+- Health and Bovinity bars are scene objects and have been manually positioned.
+
+Visual style:
+- General UI uses the Fantasy Wooden GUI Free asset pack.
+- UI text uses Assets/UdderDestruction/BMYEONSUNG_TMP.asset.
+- Battle text continues to use PixelBattleText.
+
+Current battle-text rules:
+- Desired status callouts include "Infected!", "Diseased!",
+  "Lactose Intolerance!", "YUCK!", and "Whoopsie!".
+- "OW!" and "KO" are removed.
+- Enemy damage numbers are currently disabled by an early return in
+  UdderGameController.ShowDamageText.
+- The animated-text anti-overlap code still exists but is currently commented
+  out in UdderGameController.DisplayText.
+- Berry healing displays green healing numbers or "HP Full!".
+
+Important warning:
+- Some overlays still have procedural fallback creation code, including pause
+  and game-over overlays.
+- Boss names and boss health bars are still created procedurally in UdderEnemy
+  and UdderGameController.
+- Power description panel also has a procedural fallback.
+- The project direction is to move away from procedural-only visual objects
+  whenever they can reasonably be scene objects or prefabs.
+
+
+PREFABS AND IMPORTANT ASSETS
+----------------------------
+
+Gameplay prefabs are under:
+Assets/UdderDestruction/Prefabs
+
+Important prefabs:
+- Moolissa Player.prefab
+- Debt Chicken.prefab
+- Hostile Ham.prefab
+- Miyamoto Moosashi.prefab
+- Whole Milk Shot.prefab
+- Buttermilk Shot.prefab
+- Spoiled Milk Shot.prefab
+- Raw Milk Shot.prefab
+- Prion Infection Gear.prefab
+- Weaponized Butter Slick.prefab
+- Butter Tile.prefab
+- Dairy Air Cloud.prefab
+- Dairy Air Puff.prefab
+- Spoiled Milk Puddle.prefab
+- Pond Dolphin.prefab
+- Hostile Sea Urchin.prefab
+- Pickup.prefab
+- Grass Tile.prefab
+- Pond Tile.prefab
+- Barn Prop.prefab
+- Raw Milk Fly.prefab
+- Prion Anger Indicator.prefab
+
+Important source assets:
+- Butter puddle:
+  Assets/Farming Asset Pack/Butter_Puddle.png
+- Prion projectile:
+  Assets/Admurin's Pixel Items/PixelItems/General/Singles/540_Platinum_Gear.png
+- Prion anger indicator:
+  Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png,
+  sprite 21_Very angry_C
+- Slime animations:
+  Assets/War/Slime Enemy - Pixel Art
+- Wooden UI:
+  Assets/Fantasy Wooden GUI  Free
+- Battle text:
+  Assets/PixelBattleText
+
+
+PERSISTENCE AND ACHIEVEMENTS
+----------------------------
+
+Implemented in:
+- Assets/UdderDestruction/Scripts/UdderAchievementId.cs
+- Assets/UdderDestruction/Scripts/UdderPersistence.cs
+
+Save location:
+Application.persistentDataPath/udder-persistent-data.json
+
+Tracked persistent values:
+- Chicken defeats
+- Cheese It count
+- Chickens slipped on Butter
+- Ponds polluted
+- Enemy kinds defeated
+- Unlocked achievements
+
+Achievements currently defined:
+
+Call me Al
+- Defeat Al Gore.
+- Hook exists, but Al Gore gameplay does not yet exist.
+
+Muenster Hunter
+- Defeat one Debt Chicken, Hostile Ham, cow, and dolphin.
+
+Hay, watch it!
+- Defeat another cow.
+
+Hola, soy milk
+- Beat one wave in Vegan mode.
+- Vegan mode enum/hook exists, but there is no game-mode selection UI yet.
+
+Everybody's herd about the bird
+- Kill 1000 chickens.
+
+Wagyu talkin' about?
+- Defeat Miyamoto Moosashi.
+
+Deja Moo
+- Cheese It 1000 times.
+
+Butter Chicken
+- Have 1000 chickens slip on Butter, not Buttermilk.
+- A chicken counts once per butter puddle.
+
+The Scum Also Rises
+- Pollute ponds 100 times with Spoiled Milk.
+
+Persistence behavior:
+- Progress writes are batched during play.
+- Application pause and quit force an immediate save.
+
+
+EDITOR AND BUILDER TOOLS
+------------------------
+
+Editor utility:
+Assets/UdderDestruction/Editor/UdderPrototypeSceneBuilder.cs
+
+It contains menu/build methods for creating the prototype scene, main menu,
+gameplay prefabs, and the Prion Infection projectile.
+
+Use builder methods carefully:
+- The user frequently makes manual scene/prefab changes in Unity.
+- Broad builder methods may overwrite those changes.
+- Prefer narrow builders or direct prefab/scene editing.
+- The newest narrow builder is:
+  Udder Destruction/Build Prion Infection Projectile
+
+
+PROJECT-SPECIFIC DEVELOPMENT RULES
+----------------------------------
+
+These rules were explicitly established during development:
+
+1. Prefer editable scene GameObjects and prefabs.
+   Do not create things procedurally in code unless they truly must be runtime
+   objects. The user needs to manipulate UI, colliders, enemies, terrain tiles,
+   powers, and other visual/gameplay objects in Unity.
+
+2. Respect manual Unity edits.
+   The user manually repositions, resizes, recolors, and adjusts colliders and
+   UI. Do not overwrite those values at runtime or rebuild them casually.
+
+3. Unity editor blocking rule.
+   If the Unity editor is open and blocking file/asset operations, stop and
+   tell the user. The user will confirm after closing it, then retry.
+
+4. Do not revert unrelated work.
+   The working tree may contain user changes and previous uncommitted work.
+   Never reset, revert, or overwrite unrelated changes.
+
+5. UI style.
+   Use Fantasy Wooden GUI Free for normal UI elements.
+   Use BMYEONSUNG_TMP for normal UI text.
+   Keep PixelBattleText for combat/battle text.
+
+6. Combat callout restraint.
+   Do not display generic power-name callouts during combat. Use meaningful
+   status/event callouts only.
+
+7. Prefab-first tuning.
+   Runtime code should respect prefab values instead of overwriting editable
+   values such as scale, collider, speed, lifetime, and visuals.
+
+8. Main menu and HUD must remain editable Canvas objects.
+   Do not replace them with procedural-only equivalents.
+
+
+KEY CODE RESPONSIBILITIES
+-------------------------
+
+Assets/UdderDestruction/Scripts/UdderGameController.cs
+- Central game loop, waves, spawning, bosses, drops, auto-aim, UI overlays,
+  battle text, pond contamination, power selection, and many factory methods.
+- This file is large and carries too many responsibilities. Future refactoring
+  should split systems only when it can be done without disrupting behavior.
+
+Assets/UdderDestruction/Scripts/UdderPlayer.cs
+- Movement, facing, HP, Cheese It, drowning, power levels, passive effects,
+  automatic attack timers, and pickup collection.
+
+Assets/UdderDestruction/Scripts/UdderEnemy.cs
+- Enemy movement, water avoidance, separation, statuses, boss behavior,
+  contact combat, death sequence, boss health bar, and status visuals.
+
+Assets/UdderDestruction/Scripts/UdderProjectile.cs
+- Milk projectiles and the homing/spinning Prion Infection gear.
+
+Assets/UdderDestruction/Scripts/UdderWorldStreamer.cs
+- Builds the finite grass arena and pond border from prefabs, registers water,
+  and updates polluted pond colors.
+
+Assets/UdderDestruction/Scripts/UdderHud.cs
+- Scene HUD bars, status text, power choices, and hover description panel.
+
+Assets/UdderDestruction/Scripts/UdderPersistence.cs
+- JSON-backed persistent statistics and achievement unlocks.
+
+
+KNOWN UNFINISHED OR RISKY AREAS
+-------------------------------
+
+- No restart/new-game flow after game over.
+- Sound Settings, Info, and About menu options do nothing.
+- Vegan mode has no selection UI or distinct gameplay rules yet.
+- Al Gore does not exist yet.
+- Achievements are tracked but not displayed.
+- Damage numbers are intentionally disabled.
+- Battle-text anti-overlap is intentionally disabled/commented out.
+- Boss health bars and names are still procedural.
+- Pause and game-over overlays are still procedural.
+- Power description panel may be created procedurally if scene references are
+  missing.
+- Some factory/runtime code still overwrites prefab visuals and tuning for
+  older projectiles and enemies. Continue moving toward prefab-respected values.
+- The large UdderGameController is becoming difficult to maintain.
+- The working tree is dirty and includes many important uncommitted assets.
+
+
+CURRENT WORKTREE WARNING
+------------------------
+
+At the time this document was written, the project had many modified and
+untracked files, including SampleScene, gameplay scripts, imported assets,
+prefabs, achievement/persistence scripts, and boss definitions.
+
+Before committing:
+- Inspect git status carefully.
+- Include required .meta files.
+- Do not include generated logs unless intentionally desired.
+- Do not discard any user scene/prefab changes.
+
+
+VERIFICATION PRACTICE
+---------------------
+
+Preferred verification after C# or asset-reference changes:
+
+1. Confirm Unity is not already open and blocking operations.
+2. Use a narrow Unity batch-mode builder only when asset creation/assignment is
+   required.
+3. Check the Unity log for "Tundra build success" and no compiler errors.
+4. Inspect the resulting prefab and SampleScene references.
+5. Playtest in Unity for visual/physics behavior.
+
+Recent successful verification:
+- The Prion Infection Gear prefab was created and assigned.
+- Unity batch compilation completed successfully after that change.
+
+
+QUICK START FOR A FUTURE CONVERSATION
+-------------------------------------
+
+1. Read this file.
+2. Run git status and do not revert anything.
+3. Inspect SampleScene and the relevant prefab before changing runtime code.
+4. Ask whether Unity is open before asset operations if there is any chance it
+   will block them.
+5. Prefer narrow, prefab-respecting changes.
+6. Compile with Unity and playtest behavior that involves visuals or physics.

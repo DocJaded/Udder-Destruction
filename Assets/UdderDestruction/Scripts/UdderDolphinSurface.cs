@@ -138,6 +138,7 @@ namespace UdderDestruction
         private System.Collections.IEnumerator PlayDeathSequence()
         {
             dying = true;
+            UdderPersistence.RecordEnemyDefeated(UdderEnemyKind.Dolphin, false);
             foreach (Collider2D collider in GetComponents<Collider2D>())
                 collider.enabled = false;
 

@@ -10,15 +10,21 @@ namespace UdderDestruction
         public Sprite grassSprite;
         public Sprite waterSprite;
         public Sprite barnSprite;
+        public GameObject grassTilePrefab;
+        public GameObject pondTilePrefab;
+        public GameObject barnPrefab;
         public float tileScale = 3.2f;
         public int tileRadiusX = 18;
         public int tileRadiusY = 12;
         public int chunkRadius = 2;
+        public int arenaSize = 100;
+        public int pondBorderThickness = 24;
 
         private readonly Dictionary<Vector2Int, GameObject> grassTiles = new();
-        private readonly Dictionary<Vector2Int, List<GameObject>> chunkProps = new();
+        private readonly Dictionary<Vector2Int, GameObject> pondTiles = new();
         private readonly List<Vector2> waterCenters = new();
         private readonly List<Vector2> waterRadii = new();
+        private bool arenaBuilt;
         private float refreshTimer;
 
         private void Start()
@@ -38,128 +44,107 @@ namespace UdderDestruction
 
         private void Refresh()
         {
-            if (!target)
+            EnsureArena();
+            RefreshWaterRegistrationAndColors();
+        }
+
+        private void EnsureArena()
+        {
+            if (arenaBuilt)
                 return;
 
-            Vector2Int center = new(Mathf.RoundToInt(target.position.x), Mathf.RoundToInt(target.position.y));
-            EnsureGrass(center);
-            EnsureProps(center);
-            game?.SetWaterBodies(waterCenters, waterRadii);
-        }
-
-        private void EnsureGrass(Vector2Int center)
-        {
-            HashSet<Vector2Int> wanted = new();
-            for (int x = center.x - tileRadiusX; x <= center.x + tileRadiusX; x++)
+            int half = arenaSize / 2;
+            int border = Mathf.Max(1, pondBorderThickness);
+            for (int x = -half; x < half; x++)
             {
-                for (int y = center.y - tileRadiusY; y <= center.y + tileRadiusY; y++)
-                {
-                    Vector2Int key = new(x, y);
-                    wanted.Add(key);
-                    if (grassTiles.ContainsKey(key))
-                        continue;
-
-                    GameObject tile = new($"Grass {x},{y}");
-                    tile.transform.position = new Vector3(x, y, 0.5f);
-                    tile.transform.localScale = Vector3.one * tileScale;
-                    var renderer = tile.AddComponent<SpriteRenderer>();
-                    renderer.sprite = grassSprite;
-                    renderer.color = new Color(0.5f, 0.76f, 0.32f);
-                    renderer.sortingOrder = -5;
-                    grassTiles.Add(key, tile);
-                }
+                for (int y = -half; y < half; y++)
+                    CreateGrassTile(new Vector2Int(x, y));
             }
 
-            RemoveOutside(grassTiles, wanted);
+            for (int x = -half - border; x < half + border; x++)
+            {
+                for (int y = -half - border; y < -half; y++)
+                    CreatePondTile(new Vector2Int(x, y));
+                for (int y = half; y < half + border; y++)
+                    CreatePondTile(new Vector2Int(x, y));
+            }
+
+            for (int y = -half; y < half; y++)
+            {
+                for (int x = -half - border; x < -half; x++)
+                    CreatePondTile(new Vector2Int(x, y));
+                for (int x = half; x < half + border; x++)
+                    CreatePondTile(new Vector2Int(x, y));
+            }
+
+            arenaBuilt = true;
         }
 
-        private void EnsureProps(Vector2Int center)
+        private void CreateGrassTile(Vector2Int key)
+        {
+            if (grassTiles.ContainsKey(key))
+                return;
+
+            GameObject tile = grassTilePrefab ? Instantiate(grassTilePrefab) : new GameObject($"Grass {key.x},{key.y}");
+            tile.name = $"Grass {key.x},{key.y}";
+            tile.transform.position = new Vector3(key.x, key.y, 0.5f);
+            if (!grassTilePrefab)
+                tile.transform.localScale = Vector3.one * tileScale;
+            var renderer = EnsureComponent<SpriteRenderer>(tile);
+            renderer.sprite = grassSprite;
+            renderer.color = new Color(0.5f, 0.76f, 0.32f);
+            renderer.sortingOrder = -5;
+            grassTiles.Add(key, tile);
+        }
+
+        private void CreatePondTile(Vector2Int key)
+        {
+            if (pondTiles.ContainsKey(key) || !waterSprite)
+                return;
+
+            GameObject tile = pondTilePrefab ? Instantiate(pondTilePrefab) : new GameObject($"Pond {key.x},{key.y}");
+            tile.name = $"Pond {key.x},{key.y}";
+            tile.transform.position = new Vector3(key.x, key.y, 0f);
+            if (!pondTilePrefab)
+                tile.transform.localScale = Vector3.one * 4f;
+            var renderer = EnsureComponent<SpriteRenderer>(tile);
+            renderer.sprite = waterSprite;
+            renderer.color = new Color(0.7f, 0.95f, 1f);
+            renderer.sortingOrder = -2;
+            AddWaterCollider(tile, waterSprite);
+            pondTiles.Add(key, tile);
+        }
+
+        private void RefreshWaterRegistrationAndColors()
         {
             waterCenters.Clear();
             waterRadii.Clear();
 
-            Vector2Int chunkCenter = WorldToChunk(center);
-            HashSet<Vector2Int> wantedChunks = new();
-            for (int x = chunkCenter.x - chunkRadius; x <= chunkCenter.x + chunkRadius; x++)
+            foreach (GameObject tile in pondTiles.Values)
             {
-                for (int y = chunkCenter.y - chunkRadius; y <= chunkCenter.y + chunkRadius; y++)
+                if (!tile)
+                    continue;
+
+                if (tile.TryGetComponent(out BoxCollider2D waterCollider))
                 {
-                    Vector2Int chunk = new(x, y);
-                    wantedChunks.Add(chunk);
-                    if (!chunkProps.ContainsKey(chunk))
-                        chunkProps.Add(chunk, BuildChunk(chunk));
+                    waterCenters.Add(waterCollider.bounds.center);
+                    waterRadii.Add(waterCollider.bounds.extents);
+                }
+                else
+                {
+                    waterCenters.Add(tile.transform.position);
+                    waterRadii.Add(Vector2.one * 0.5f);
+                }
 
-                    foreach (GameObject prop in chunkProps[chunk])
-                    {
-                        if (!prop)
-                            continue;
-
-                        if (prop.name.Contains("Pond"))
-                        {
-                            waterCenters.Add(prop.transform.position);
-                            waterRadii.Add(Vector2.one * 1.35f);
-                            if (prop.TryGetComponent(out SpriteRenderer renderer))
-                            {
-                                renderer.color = game && game.IsWaterContaminated(prop.transform.position)
-                                    ? new Color(0.25f, 0.95f, 0.25f)
-                                    : new Color(0.7f, 0.95f, 1f);
-                            }
-                        }
-                    }
+                if (tile.TryGetComponent(out SpriteRenderer renderer))
+                {
+                    renderer.color = game && game.IsWaterContaminated(tile.transform.position)
+                        ? new Color(0.25f, 0.95f, 0.25f)
+                        : new Color(0.7f, 0.95f, 1f);
                 }
             }
 
-            List<Vector2Int> stale = new();
-            foreach (Vector2Int key in chunkProps.Keys)
-            {
-                if (!wantedChunks.Contains(key))
-                    stale.Add(key);
-            }
-
-            foreach (Vector2Int key in stale)
-            {
-                foreach (GameObject prop in chunkProps[key])
-                {
-                    if (prop)
-                        Destroy(prop);
-                }
-                chunkProps.Remove(key);
-            }
-        }
-
-        private List<GameObject> BuildChunk(Vector2Int chunk)
-        {
-            List<GameObject> props = new();
-            int hash = Hash(chunk.x, chunk.y);
-            Vector2 chunkOrigin = new(chunk.x * 10f, chunk.y * 10f);
-
-            if ((hash % 100) < 24 || chunk == new Vector2Int(-1, 0))
-                props.AddRange(CreateWaterPatch(chunkOrigin + new Vector2(2f, -2f)));
-
-            if (((hash / 100) % 100) < 14)
-                props.Add(CreateProp("Procedural Barn", barnSprite, chunkOrigin + new Vector2(-2.5f, 2.5f), Color.white, 1.8f, -2));
-
-            return props;
-        }
-
-        private List<GameObject> CreateWaterPatch(Vector2 center)
-        {
-            List<GameObject> tiles = new();
-            if (!waterSprite)
-                return tiles;
-
-            Vector2 spacing = waterSprite.bounds.size * 4f;
-            for (int x = -1; x <= 1; x += 2)
-            {
-                for (int y = -1; y <= 1; y += 2)
-                {
-                    Vector2 pos = center + new Vector2(x * spacing.x * 0.5f, y * spacing.y * 0.5f);
-                    GameObject tile = CreateProp("Procedural Pond Tile", waterSprite, pos, new Color(0.7f, 0.95f, 1f), 4f, -2);
-                    AddWaterCollider(tile, waterSprite);
-                    tiles.Add(tile);
-                }
-            }
-            return tiles;
+            game?.SetWaterBodies(waterCenters, waterRadii);
         }
 
         private static void AddWaterCollider(GameObject tile, Sprite sprite)
@@ -167,57 +152,24 @@ namespace UdderDestruction
             if (!tile || !sprite)
                 return;
 
+            if (tile.TryGetComponent(out BoxCollider2D existingCollider))
+            {
+                existingCollider.isTrigger = true;
+                return;
+            }
+
             var collider = tile.AddComponent<BoxCollider2D>();
             collider.size = sprite.bounds.size;
             collider.offset = sprite.bounds.center;
+            collider.isTrigger = true;
         }
 
-        private GameObject CreateProp(string name, Sprite sprite, Vector2 position, Color color, float scale, int sortingOrder)
+        private static T EnsureComponent<T>(GameObject target) where T : Component
         {
-            if (!sprite)
-                return null;
+            if (target.TryGetComponent(out T component))
+                return component;
 
-            GameObject prop = new(name);
-            prop.transform.position = new Vector3(position.x, position.y, 0f);
-            prop.transform.localScale = Vector3.one * scale;
-            var renderer = prop.AddComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
-            renderer.color = color;
-            renderer.sortingOrder = sortingOrder;
-            return prop;
-        }
-
-        private static Vector2Int WorldToChunk(Vector2Int position)
-        {
-            return new Vector2Int(Mathf.FloorToInt(position.x / 10f), Mathf.FloorToInt(position.y / 10f));
-        }
-
-        private static int Hash(int x, int y)
-        {
-            unchecked
-            {
-                int h = x * 73856093 ^ y * 19349663;
-                h ^= h >> 13;
-                h *= 83492791;
-                return Mathf.Abs(h);
-            }
-        }
-
-        private static void RemoveOutside(Dictionary<Vector2Int, GameObject> objects, HashSet<Vector2Int> wanted)
-        {
-            List<Vector2Int> stale = new();
-            foreach (Vector2Int key in objects.Keys)
-            {
-                if (!wanted.Contains(key))
-                    stale.Add(key);
-            }
-
-            foreach (Vector2Int key in stale)
-            {
-                if (objects[key])
-                    Destroy(objects[key]);
-                objects.Remove(key);
-            }
+            return target.AddComponent<T>();
         }
     }
 }

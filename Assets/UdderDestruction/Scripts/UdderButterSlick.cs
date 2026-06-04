@@ -10,11 +10,12 @@ namespace UdderDestruction
         public float slideMultiplier = 3.4f;
 
         private readonly List<UdderEnemy> enemies = new();
-        private SpriteRenderer spriteRenderer;
+        private readonly HashSet<UdderEnemy> countedChickenSlips = new();
+        private SpriteRenderer[] spriteRenderers;
 
         private void Awake()
         {
-            spriteRenderer = GetComponent<SpriteRenderer>();
+            spriteRenderers = GetComponentsInChildren<SpriteRenderer>();
         }
 
         private void Update()
@@ -26,10 +27,15 @@ namespace UdderDestruction
                 return;
             }
 
-            if (spriteRenderer)
+            float alpha = Mathf.Clamp01(life / 1.5f);
+            for (int i = 0; i < spriteRenderers.Length; i++)
             {
+                SpriteRenderer spriteRenderer = spriteRenderers[i];
+                if (!spriteRenderer)
+                    continue;
+
                 Color color = spriteRenderer.color;
-                color.a = Mathf.Clamp01(life / 1.5f) * 0.72f;
+                color.a = alpha;
                 spriteRenderer.color = color;
             }
 
@@ -41,7 +47,8 @@ namespace UdderDestruction
                     continue;
                 }
 
-                enemies[i].StartButterSlide(slideDuration, slideMultiplier);
+                if (enemies[i].StartButterSlide(slideDuration, slideMultiplier) && countedChickenSlips.Add(enemies[i]))
+                    enemies[i].RegisterButterSlickSlide();
             }
         }
 

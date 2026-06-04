@@ -42,7 +42,7 @@ namespace UdderDestruction
 
             SetBarFill(healthFill, player.Health01);
             SetBarFill(bovinityFill, player.Bovinity01);
-            statusText.text = $"WAVE {game.Wave}   {game.WaveStatusText}   BOV LV {player.BovinityLevel} {Mathf.FloorToInt(player.Bovinity)}/{Mathf.FloorToInt(player.maxBovinity)}   DD {game.BankedDairyDoubles}   URCHINS {game.GroundedSeaUrchins}/5   CREAM {game.Cream}";
+            statusText.text = $"MOOLISSA HOOFMAN WAVE {game.Wave} LVL {player.BovinityLevel} DD {game.BankedDairyDoubles}";
         }
 
         private static void SetBarFill(Image fill, float amount)
@@ -155,17 +155,17 @@ namespace UdderDestruction
             panelRect.anchorMax = new Vector2(0.5f, 1f);
             panelRect.pivot = new Vector2(0.5f, 0f);
             panelRect.anchoredPosition = new Vector2(0f, 18f);
-            panelRect.sizeDelta = new Vector2(560f, 132f);
+            panelRect.sizeDelta = new Vector2(560f, 148f);
 
             var panelImage = powerDescriptionPanel.AddComponent<Image>();
             ApplyWoodenPanel(panelImage, 0.96f);
 
-            powerDescriptionTitle = CreateDescriptionText(powerDescriptionPanel.transform, "POWER", new Vector2(14f, -12f), 20, TextAlignmentOptions.Left);
+            powerDescriptionTitle = CreateDescriptionText(powerDescriptionPanel.transform, "POWER", new Vector2(52f, -30f), 20, TextAlignmentOptions.Left);
             powerDescriptionTitle.color = new Color(1f, 0.86f, 0.12f);
-            powerDescriptionTitle.rectTransform.sizeDelta = new Vector2(532f, 28f);
+            powerDescriptionTitle.rectTransform.sizeDelta = new Vector2(456f, 28f);
 
-            powerDescriptionBody = CreateDescriptionText(powerDescriptionPanel.transform, "DESCRIPTION", new Vector2(14f, -44f), 15, TextAlignmentOptions.TopLeft);
-            powerDescriptionBody.rectTransform.sizeDelta = new Vector2(532f, 78f);
+            powerDescriptionBody = CreateDescriptionText(powerDescriptionPanel.transform, "DESCRIPTION", new Vector2(52f, -62f), 14, TextAlignmentOptions.TopLeft);
+            powerDescriptionBody.rectTransform.sizeDelta = new Vector2(456f, 54f);
             powerDescriptionBody.textWrappingMode = TextWrappingModes.Normal;
             powerDescriptionPanel.SetActive(false);
         }
@@ -188,11 +188,6 @@ namespace UdderDestruction
             label.fontSize = size;
             label.alignment = alignment;
             label.color = Color.white;
-            if (label.font)
-            {
-                label.outlineWidth = 0.16f;
-                label.outlineColor = Color.black;
-            }
             return label;
         }
 
@@ -255,6 +250,25 @@ namespace UdderDestruction
             image.sprite = barSprite ? barSprite : panelSprite;
             image.type = image.sprite ? Image.Type.Sliced : Image.Type.Simple;
             image.color = image.sprite ? Color.white : new Color(0f, 0f, 0f, 0.72f);
+        }
+
+        private static void FitBarContent(Image fill)
+        {
+            if (!fill)
+                return;
+
+            var fillRect = fill.rectTransform;
+            fillRect.offsetMin = new Vector2(95.55f, 9.61f);
+            fillRect.offsetMax = new Vector2(-29.6f, -9.62f);
+
+            foreach (TMP_Text label in fill.transform.parent.GetComponentsInChildren<TMP_Text>(true))
+            {
+                var rect = label.rectTransform;
+                rect.anchoredPosition = new Vector2(34f, -7f);
+                rect.sizeDelta = new Vector2(-68f, 22f);
+                label.fontSize = Mathf.Min(label.fontSize, 13f);
+                label.color = Color.black;
+            }
         }
 
     }

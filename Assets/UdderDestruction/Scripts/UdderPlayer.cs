@@ -39,9 +39,10 @@ namespace UdderDestruction
         private float rawMilkTimer;
         private float butterTimer;
         private float dairyAirTimer;
-        private float auraPulseTimer;
         private float prionPulseTimer;
         private float maillardRegenTimer;
+        private float drowningTickTimer;
+        private float drowningTextTimer;
         private Vector2 aim = Vector2.right;
         private Vector2 visualFacing = Vector2.right;
         private float invulnerableTimer;
@@ -77,7 +78,6 @@ namespace UdderDestruction
             rawMilkTimer = 2.4f;
             butterTimer = 2.5f;
             dairyAirTimer = 4.5f;
-            auraPulseTimer = 1f;
             prionPulseTimer = 6f;
             maillardRegenTimer = GetMaillardRegenInterval();
         }
@@ -94,7 +94,18 @@ namespace UdderDestruction
                 visualFacing = aim;
             }
 
-            body.linearVelocity = move * GetCurrentMoveSpeed();
+            Vector2 desiredVelocity = move * GetCurrentMoveSpeed();
+            bool drowning = game && game.IsInWater(transform.position, 0f);
+            if (drowning)
+                desiredVelocity *= 0.5f;
+            if (game && desiredVelocity.sqrMagnitude > 0.0001f)
+            {
+                Vector2 desiredMove = desiredVelocity * Time.deltaTime;
+                Vector2 constrainedMove = game.GetArenaConstrainedMove(transform.position, desiredMove);
+                desiredVelocity = Time.deltaTime > 0f ? constrainedMove / Time.deltaTime : Vector2.zero;
+            }
+
+            body.linearVelocity = desiredVelocity;
 
             UdderSpriteFacing.Apply(spriteRenderer, visualFacing, downSprite, sideSprite, upSprite, true);
 
@@ -106,6 +117,7 @@ namespace UdderDestruction
             rawMilkTimer -= Time.deltaTime;
             butterTimer -= Time.deltaTime;
             dairyAirTimer -= Time.deltaTime;
+            UpdateDrowning(drowning);
             UpdateMaillardReaction();
 
             TryFireMilkPower(UdderPower.WholeMilk, MilkMode.WholeMilk, ref wholeMilkTimer, fireInterval, 6f, 0.5f);
@@ -129,6 +141,52 @@ namespace UdderDestruction
                 dairyAirTimer = dairyAirInterval;
                 SpendMilk(28f);
                 game.DeployDairyAir(transform.position, dairyAirLevel, dairyAirInterval);
+            }
+        }
+
+        private void UpdateDrowning(bool drowning)
+        {
+            if (!drowning)
+            {
+                drowningTickTimer = 0f;
+                drowningTextTimer = 0f;
+                return;
+            }
+
+            drowningTickTimer -= Time.deltaTime;
+            drowningTextTimer -= Time.deltaTime;
+            if (drowningTextTimer <= 0f)
+            {
+                drowningTextTimer = 0.85f;
+                game?.ShowDrowningText(transform.position);
+            }
+
+            if (drowningTickTimer > 0f)
+                return;
+
+            drowningTickTimer = 1f;
+            TakeDrowningDamage(maxHealth * 0.15f);
+        }
+
+        private void TakeDrowningDamage(float amount)
+        {
+            if (health <= 0f)
+                return;
+
+            health -= amount;
+            if (health <= 0f)
+            {
+                if (Random.value < CheeseItChance)
+                {
+                    health = maxHealth;
+                    invulnerableTimer = 2.2f;
+                    game.ShowCheesedItText(transform);
+                }
+                else
+                {
+                    body.linearVelocity = Vector2.zero;
+                    game.GameOver();
+                }
             }
         }
 
@@ -188,6 +246,16 @@ namespace UdderDestruction
                     game.GameOver();
                 }
             }
+        }
+
+        public void RestoreHealthToFull()
+        {
+            health = maxHealth;
+        }
+
+        public void FillBovinity()
+        {
+            bovinity = maxBovinity;
         }
 
         public void Collect(UdderPickup pickup)
@@ -279,7 +347,7 @@ namespace UdderDestruction
                 UdderPower.MoreCowbell => "More Cowbell",
                 UdderPower.MaillardReaction => "Maillard Reaction",
                 UdderPower.AuraFarming => "Aura Farming",
-                UdderPower.PrionPulse => "Prion Pulse",
+                UdderPower.PrionInfection => "Prion Infection",
                 _ => power.ToString(),
             };
         }
@@ -292,7 +360,7 @@ namespace UdderDestruction
                 UdderPower.WholeMilk => "Fast milk projectile. Leveling increases projectile damage.",
                 UdderPower.Buttermilk => "Milk projectile that makes targets slip. Leveling increases damage and slip duration.",
                 UdderPower.SpoiledMilk => "Fires spoiled milk that creates repulsing puddles, beaches dolphins, and contaminates pond tiles.",
-                UdderPower.RawMilk => "Milk projectile that infects enemies with damage over time. Leveling increases projectile damage.",
+                UdderPower.RawMilk => "Milk projectile that makes enemies Diseased with damage over time. Leveling increases projectile damage.",
                 UdderPower.Butter => "Drops a slippery butter tile area. Odd levels increase duration; even levels increase size up to 4x4.",
                 UdderPower.DairyAir => "Creates a cloud that makes enemies lactose intolerant for life. Leveling increases cloud uptime.",
                 UdderPower.CondensedMilk => "Milk projectiles gain damage over time. Leveling increases DoT damage and duration.",
@@ -302,8 +370,8 @@ namespace UdderDestruction
                 UdderPower.MoreCowbell => "Adds more enemies per wave and increases all drop chances by 10% per level.",
                 UdderPower.MaillardReaction => "Regenerates 10% HP over time. Leveling speeds the regeneration up to once per second.",
                 UdderPower.Rawhide => "Reduces incoming damage. Starts at 10% resistance, then +1% per level.",
-                UdderPower.AuraFarming => "Always-on aura pulse around the cow. Leveling increases radius, damage, and pulse frequency.",
-                UdderPower.PrionPulse => "Infects nearby enemies so they attack other enemies, then die. Leveling increases duration and spread chance.",
+                UdderPower.AuraFarming => "Attracts nearby drops. Each level adds one cow-collider radius to its attraction range.",
+                UdderPower.PrionInfection => "Infects enemies with prions, causing damage over time and making them attack other enemies. On death, infection has a level-scaled chance to spread within its AoE.",
                 _ => "No description available.",
             };
         }
@@ -330,11 +398,7 @@ namespace UdderDestruction
             {
                 maillardRegenTimer = GetMaillardRegenInterval();
             }
-            else if (power == UdderPower.AuraFarming && previousLevel <= 0)
-            {
-                auraPulseTimer = 0.1f;
-            }
-            else if (power == UdderPower.PrionPulse && previousLevel <= 0)
+            else if (power == UdderPower.PrionInfection && previousLevel <= 0)
             {
                 prionPulseTimer = 0.25f;
             }
@@ -369,24 +433,17 @@ namespace UdderDestruction
         {
             int level = GetPowerLevel(UdderPower.AuraFarming);
             if (level <= 0 || !game)
-            {
-                game?.SetAuraFarmingActive(transform, 0f);
-                return;
-            }
-
-            float radius = GetAuraRadius(level);
-            game.SetAuraFarmingActive(transform, radius);
-            auraPulseTimer -= Time.deltaTime;
-            if (auraPulseTimer > 0f)
                 return;
 
-            auraPulseTimer = GetAuraPulseInterval(level);
-            game.PulseAuraDamage(transform.position, radius, GetAuraPulseDamage(level));
+            float colliderRadius = 0.18f;
+            if (TryGetComponent(out CircleCollider2D circle))
+                colliderRadius = circle.radius * Mathf.Max(Mathf.Abs(transform.localScale.x), Mathf.Abs(transform.localScale.y));
+            game.AttractNearbyDrops(transform.position, colliderRadius * level);
         }
 
         private void UpdatePrionPulse()
         {
-            int level = GetPowerLevel(UdderPower.PrionPulse);
+            int level = GetPowerLevel(UdderPower.PrionInfection);
             if (level <= 0 || !game)
                 return;
 
@@ -396,21 +453,6 @@ namespace UdderDestruction
 
             prionPulseTimer = 6f;
             game.TryStartPrionPulse(transform.position, level);
-        }
-
-        private static float GetAuraRadius(int level)
-        {
-            return 0.7f * (1f + Mathf.Max(0, level - 1) * 0.1f);
-        }
-
-        private static float GetAuraPulseDamage(int level)
-        {
-            return Mathf.Max(1f, level);
-        }
-
-        private static float GetAuraPulseInterval(int level)
-        {
-            return 1f / (1f + Mathf.Max(0, level - 1) * 0.1f);
         }
 
         private float GetMaillardRegenInterval()

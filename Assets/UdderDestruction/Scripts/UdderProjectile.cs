@@ -11,8 +11,13 @@ namespace UdderDestruction
         public int powerLevel = 1;
         public int condensedMilkLevel;
         public UdderGameController game;
+        public float spinDegreesPerSecond = 240f;
+        public float homingStrength = 7f;
 
         private Vector2 direction;
+        private UdderEnemy prionTarget;
+        private float prionDamagePerSecond;
+        private float prionSpreadChance;
 
         public void Fire(Vector2 fireDirection)
         {
@@ -26,16 +31,40 @@ namespace UdderDestruction
 
         private void Update()
         {
+            if (mode == MilkMode.Prion)
+            {
+                if (!prionTarget || !prionTarget.IsAlive)
+                {
+                    Burst(false);
+                    return;
+                }
+
+                Vector2 toTarget = prionTarget.transform.position - transform.position;
+                if (toTarget.sqrMagnitude > 0.01f)
+                    direction = Vector2.Lerp(direction, toTarget.normalized, homingStrength * Time.deltaTime).normalized;
+                transform.Rotate(0f, 0f, spinDegreesPerSecond * Time.deltaTime);
+            }
+
             transform.position += (Vector3)(direction * speed * Time.deltaTime);
             life -= Time.deltaTime;
             if (life <= 0f)
                 Burst(false);
         }
 
+        public void ConfigurePrionTarget(UdderEnemy target, float damagePerSecond, float spreadChance)
+        {
+            prionTarget = target;
+            prionDamagePerSecond = damagePerSecond;
+            prionSpreadChance = spreadChance;
+        }
+
         private void OnTriggerEnter2D(Collider2D other)
         {
             if (other.TryGetComponent(out UdderDolphinSurface dolphin))
             {
+                if (mode == MilkMode.Prion)
+                    return;
+
                 if (mode == MilkMode.SpoiledMilk && game)
                 {
                     dolphin.BeachFromSpoiledMilk(transform.position);
@@ -56,6 +85,9 @@ namespace UdderDestruction
 
             if (other.TryGetComponent(out UdderSeaUrchin seaUrchin))
             {
+                if (mode == MilkMode.Prion)
+                    return;
+
                 seaUrchin.TakeDamage(damage, mode);
                 Burst(false);
                 return;
@@ -63,6 +95,16 @@ namespace UdderDestruction
 
             if (!other.TryGetComponent(out UdderEnemy enemy))
                 return;
+
+            if (mode == MilkMode.Prion)
+            {
+                if (enemy != prionTarget)
+                    return;
+
+                enemy.ApplyPrionPulse(prionDamagePerSecond, prionSpreadChance);
+                Burst(false);
+                return;
+            }
 
             enemy.TakeDamage(damage, mode, true, powerLevel);
             if (condensedMilkLevel > 0 && (mode == MilkMode.WholeMilk || mode == MilkMode.Buttermilk || mode == MilkMode.RawMilk))

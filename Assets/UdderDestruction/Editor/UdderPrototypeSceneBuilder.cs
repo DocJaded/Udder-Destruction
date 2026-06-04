@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.TextCore.LowLevel;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem.UI;
 #endif
@@ -85,7 +86,8 @@ namespace UdderDestruction.Editor
             game.bottleSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/02_Glass_Bottle_A.png");
             game.skullBottleSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/100_Soul_Trapped_R.png");
             game.creamSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/102_Essence_Health.png");
-            game.butterSprite = LoadSprite("Assets/Farming Asset Pack/farming-water.png", "farming-water_0");
+            ConfigureSinglePixelSprite("Assets/Farming Asset Pack/Butter_Puddle.png");
+            game.butterSprite = LoadFirstSprite("Assets/Farming Asset Pack/Butter_Puddle.png");
             game.spoiledPuddleSprite = LoadFirstSprite("Assets/War/Slime Enemy - Pixel Art/Sprites/Idle/Green/Sprite Sheet - Green Idle.png");
             game.spoiledPuddleIdleController = LoadAsset<RuntimeAnimatorController>("Assets/War/Slime Enemy - Pixel Art/Animation/Idle/Green/Green Idle - Controller.controller");
             game.spoiledPuddleHurtController = LoadAsset<RuntimeAnimatorController>("Assets/War/Slime Enemy - Pixel Art/Animation/Hurt/Green/Green Hurt - Controller.controller");
@@ -105,6 +107,8 @@ namespace UdderDestruction.Editor
             game.rawMilkFlySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/93_Fly.png");
             game.cottonDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/54_Cotton.png");
             game.skullDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/01_Skull_Human.png");
+            game.prionAngrySprite = LoadSprite("Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png", "21_Very angry_C");
+            game.prionProjectileSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/540_Platinum_Gear.png");
             game.dolphinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/70_Mammal_Dolphin.png");
             game.seaUrchinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/114_Echinodermata_SeaUrchin.png");
             game.damageText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_damage.asset");
@@ -133,18 +137,18 @@ namespace UdderDestruction.Editor
             streamer.waterSprite = LoadSprite("Assets/Farming Asset Pack/farming-water.png", "farming-water_0");
             streamer.barnSprite = LoadSprite("Assets/Farming Asset Pack/farming-houses.png", "farming-houses_0");
 
-            TMP_FontAsset pixelFont = LoadAsset<TMP_FontAsset>("Assets/PixelBattleText/Fonts/Alphapix.asset");
-            game.uiFont = pixelFont;
+            TMP_FontAsset uiFont = GetWoodenTmpFontAsset();
+            game.uiFont = uiFont;
 
             var hud = gameObject.AddComponent<UdderHud>();
             hud.game = game;
             hud.player = player;
-            hud.font = pixelFont;
+            hud.font = uiFont;
             hud.panelSprite = woodenPanel;
             hud.buttonSprite = woodenButton;
             hud.buttonPressedSprite = woodenButtonPressed;
             hud.barSprite = woodenBar;
-            BuildHudCanvas(hud);
+            BuildHudCanvas(hud, game);
             hud.ApplyWoodenSkin();
             BuildEventSystem();
             BuildRuntimeSpawnTemplates(game);
@@ -156,6 +160,283 @@ namespace UdderDestruction.Editor
             Debug.Log("Udder Destruction prototype scene built. Press Play and try not to become pasture prime.");
         }
 
+        [MenuItem("Udder Destruction/Build Main Menu In Current Scene")]
+        public static void BuildMainMenuInCurrentScene()
+        {
+            if (!EditorSceneManager.GetActiveScene().isLoaded || string.IsNullOrEmpty(EditorSceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+
+            UdderGameController game = Object.FindFirstObjectByType<UdderGameController>();
+            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+            if (!game || !canvas)
+            {
+                Debug.LogError("Cannot build main menu: scene needs an UdderGameController and HUD Canvas.");
+                return;
+            }
+
+            Transform existing = canvas.transform.Find("Main Menu Overlay");
+            if (existing)
+                Object.DestroyImmediate(existing.gameObject);
+
+            game.uiPanelSprite = game.uiPanelSprite ? game.uiPanelSprite : LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/UI board Medium Set.png");
+            game.uiButtonSprite = game.uiButtonSprite ? game.uiButtonSprite : LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/TextBTN_Medium.png");
+            game.uiButtonPressedSprite = game.uiButtonPressedSprite ? game.uiButtonPressedSprite : LoadAsset<Sprite>("Assets/Fantasy Wooden GUI  Free/normal_ui_set A/TextBTN_Medium_Pressed.png");
+            if (!game.uiFont)
+                game.uiFont = GetWoodenTmpFontAsset();
+
+            BuildMainMenu(canvas.transform, game);
+            EditorUtility.SetDirty(game);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log("Main menu canvas objects built in the current scene.");
+        }
+
+        [MenuItem("Udder Destruction/Build Gameplay Prefabs In Current Scene")]
+        public static void BuildGameplayPrefabsInCurrentScene()
+        {
+            if (!EditorSceneManager.GetActiveScene().isLoaded || string.IsNullOrEmpty(EditorSceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+
+            UdderGameController game = Object.FindFirstObjectByType<UdderGameController>();
+            UdderWorldStreamer streamer = Object.FindFirstObjectByType<UdderWorldStreamer>();
+            if (!game)
+            {
+                Debug.LogError("Cannot build gameplay prefabs: scene needs an UdderGameController.");
+                return;
+            }
+
+            const string folder = "Assets/UdderDestruction/Prefabs";
+            Directory.CreateDirectory(folder);
+
+            game.chickenEnemyPrefab = SaveEnemyPrefab($"{folder}/Debt Chicken.prefab", game.chickenSprite, game.chickenDownSprite, game.chickenSideSprite, game.chickenUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 4);
+            game.pigEnemyPrefab = SaveEnemyPrefab($"{folder}/Hostile Ham.prefab", game.pigSprite, game.pigDownSprite, game.pigSideSprite, game.pigUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.13f, new Vector2(0f, -0.02f), 4);
+            game.bossEnemyPrefab = SaveEnemyPrefab($"{folder}/Miyamoto Moosashi.prefab", game.bossCowSprite ? game.bossCowSprite : game.cowSprite, game.bossCowDownSprite, game.bossCowSideSprite, game.bossCowUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5);
+            game.wholeMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Whole Milk Shot.prefab", game.wholeMilkSprite ? game.wholeMilkSprite : game.bottleSprite, Color.white);
+            game.buttermilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Buttermilk Shot.prefab", game.buttermilkSprite ? game.buttermilkSprite : game.bottleSprite, Color.white);
+            game.spoiledMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Spoiled Milk Shot.prefab", game.bottleSprite, new Color(0.55f, 1f, 0.45f));
+            game.rawMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Raw Milk Shot.prefab", game.rawMilkSprite ? game.rawMilkSprite : game.bottleSprite, Color.white);
+            game.prionProjectilePrefab = SavePrionProjectilePrefab($"{folder}/Prion Infection Gear.prefab", game.prionProjectileSprite);
+            game.butterSlickPrefab = SaveButterSlickPrefab($"{folder}/Weaponized Butter Slick.prefab");
+            game.butterTilePrefab = SaveSpritePrefab($"{folder}/Butter Tile.prefab", "Butter Tile", game.butterSprite, Color.white, Vector3.one, -1);
+            game.dairyAirCloudPrefab = SaveDairyAirCloudPrefab($"{folder}/Dairy Air Cloud.prefab", GetSolidSprite("Assets/UdderDestruction/SolidPixel.png"));
+            game.dairyAirPuffPrefab = SaveSpritePrefab($"{folder}/Dairy Air Puff.prefab", "Dairy Air Puff", game.dairyAirSprite, new Color(0.92f, 0.96f, 1f, 0.42f), Vector3.one * 0.72f, 3);
+            game.spoiledMilkPuddlePrefab = SaveSpoiledPuddlePrefab($"{folder}/Spoiled Milk Puddle.prefab", game);
+            game.dolphinPrefab = SaveDolphinPrefab($"{folder}/Pond Dolphin.prefab", game);
+            game.seaUrchinPrefab = SaveSeaUrchinPrefab($"{folder}/Hostile Sea Urchin.prefab", game);
+            game.pickupPrefab = SavePickupPrefab($"{folder}/Pickup.prefab", game.creamSprite ? game.creamSprite : game.cheeseSprite);
+            game.rawMilkFlyPrefab = SaveSpritePrefab($"{folder}/Raw Milk Fly.prefab", "Raw Milk Fly", game.rawMilkFlySprite, Color.white, Vector3.one * 0.25f, 7);
+            game.prionIndicatorPrefab = SaveSpritePrefab($"{folder}/Prion Anger Indicator.prefab", "Prion Anger Indicator", game.prionAngrySprite, Color.white, Vector3.one, 8);
+
+            if (game.player)
+                PrefabUtility.SaveAsPrefabAsset(game.player.gameObject, $"{folder}/Moolissa Player.prefab");
+
+            if (streamer)
+            {
+                streamer.grassTilePrefab = SaveSpritePrefab($"{folder}/Grass Tile.prefab", "Grass Tile", streamer.grassSprite, new Color(0.5f, 0.76f, 0.32f), Vector3.one * streamer.tileScale, -5);
+                streamer.pondTilePrefab = SavePondTilePrefab($"{folder}/Pond Tile.prefab", streamer.waterSprite);
+                streamer.barnPrefab = SaveSpritePrefab($"{folder}/Barn Prop.prefab", "Barn Prop", streamer.barnSprite, Color.white, Vector3.one * 1.8f, -2);
+                EditorUtility.SetDirty(streamer);
+            }
+
+            EditorUtility.SetDirty(game);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log("Gameplay prefabs built and assigned in the current scene.");
+        }
+
+        [MenuItem("Udder Destruction/Build Prion Infection Projectile")]
+        public static void BuildPrionInfectionProjectile()
+        {
+            if (!EditorSceneManager.GetActiveScene().isLoaded || string.IsNullOrEmpty(EditorSceneManager.GetActiveScene().path))
+                EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+
+            UdderGameController game = Object.FindFirstObjectByType<UdderGameController>();
+            if (!game)
+            {
+                Debug.LogError("Cannot build Prion Infection projectile: scene needs an UdderGameController.");
+                return;
+            }
+
+            const string folder = "Assets/UdderDestruction/Prefabs";
+            Directory.CreateDirectory(folder);
+            game.prionProjectileSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/540_Platinum_Gear.png");
+            game.prionProjectilePrefab = SavePrionProjectilePrefab($"{folder}/Prion Infection Gear.prefab", game.prionProjectileSprite);
+            EditorUtility.SetDirty(game);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+            AssetDatabase.SaveAssets();
+            Debug.Log("Prion Infection projectile prefab built and assigned.");
+        }
+
+        private static GameObject SaveProjectilePrefab(string path, Sprite sprite, Color color)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), sprite, color, Vector3.one * 1.8f, 5);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.22f;
+            var body = prefab.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            prefab.AddComponent<UdderProjectile>();
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SavePrionProjectilePrefab(string path, Sprite sprite)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), sprite, Color.white, Vector3.one * 1.8f, 5);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.22f;
+            var body = prefab.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            var projectile = prefab.AddComponent<UdderProjectile>();
+            projectile.mode = MilkMode.Prion;
+            projectile.speed = 5.5f;
+            projectile.life = 2f;
+            projectile.spinDegreesPerSecond = 240f;
+            projectile.homingStrength = 7f;
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveEnemyPrefab(string path, Sprite sprite, Sprite down, Sprite side, Sprite up, Sprite fly, Sprite cotton, Sprite skull, Sprite prion, bool boss, float radius, Vector2 offset, int sortingOrder)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), sprite, Color.white, Vector3.one, sortingOrder);
+            var body = prefab.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.radius = radius;
+            collider.offset = offset;
+            var enemy = prefab.AddComponent<UdderEnemy>();
+            enemy.downSprite = down;
+            enemy.sideSprite = side;
+            enemy.upSprite = up;
+            enemy.rawMilkFlySprite = fly;
+            enemy.cottonDeathSprite = cotton;
+            enemy.skullDeathSprite = skull;
+            enemy.prionAngrySprite = prion;
+            enemy.avoidsWater = true;
+            enemy.IsBoss = boss;
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveButterSlickPrefab(string path)
+        {
+            GameObject prefab = new(Path.GetFileNameWithoutExtension(path));
+            var collider = prefab.AddComponent<BoxCollider2D>();
+            collider.isTrigger = true;
+            collider.size = Vector2.one;
+            prefab.AddComponent<UdderButterSlick>();
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveDairyAirCloudPrefab(string path, Sprite solidSprite)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), solidSprite, new Color(1f, 1f, 1f, 0f), Vector3.one, 3);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.55f;
+            prefab.AddComponent<UdderDairyAirCloud>();
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveSpoiledPuddlePrefab(string path, UdderGameController game)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), game.spoiledPuddleSprite ? game.spoiledPuddleSprite : game.wholeMilkSprite, new Color(1f, 0.92f, 0.25f, 0.82f), Vector3.one * 1.7f, 1);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.75f;
+            if (game.spoiledPuddleIdleController)
+            {
+                var animator = prefab.AddComponent<Animator>();
+                animator.runtimeAnimatorController = game.spoiledPuddleIdleController;
+            }
+            prefab.AddComponent<UdderHazardPool>();
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveDolphinPrefab(string path, UdderGameController game)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), game.dolphinSprite, Color.white, Vector3.one, 4);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.32f;
+            var body = prefab.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            var surface = prefab.AddComponent<UdderDolphinSurface>();
+            surface.cottonDeathSprite = game.cottonDeathSprite;
+            surface.skullDeathSprite = game.skullDeathSprite;
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveSeaUrchinPrefab(string path, UdderGameController game)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), game.seaUrchinSprite, Color.white, Vector3.one, 6);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.18f;
+            var body = prefab.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            prefab.AddComponent<UdderSeaUrchin>();
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SavePickupPrefab(string path, Sprite sprite)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), sprite, Color.white, Vector3.one * 1.8f, 6);
+            var collider = prefab.AddComponent<CircleCollider2D>();
+            collider.isTrigger = true;
+            collider.radius = 0.22f;
+            prefab.AddComponent<UdderPickup>();
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SavePondTilePrefab(string path, Sprite sprite)
+        {
+            GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), sprite, new Color(0.7f, 0.95f, 1f), Vector3.one * 4f, -2);
+            if (sprite)
+            {
+                var collider = prefab.AddComponent<BoxCollider2D>();
+                collider.size = sprite.bounds.size;
+                collider.offset = sprite.bounds.center;
+            }
+            return SavePrefab(path, prefab);
+        }
+
+        private static GameObject SaveSpritePrefab(string path, string name, Sprite sprite, Color color, Vector3 scale, int sortingOrder)
+        {
+            return SavePrefab(path, CreateSpriteObject(name, sprite, color, scale, sortingOrder));
+        }
+
+        private static GameObject CreateSpriteObject(string name, Sprite sprite, Color color, Vector3 scale, int sortingOrder)
+        {
+            GameObject prefab = new(name);
+            prefab.transform.localScale = scale;
+            var renderer = prefab.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            return prefab;
+        }
+
+        private static GameObject SavePrefab(string path, GameObject prefab)
+        {
+            GameObject saved = PrefabUtility.SaveAsPrefabAsset(prefab, path);
+            Object.DestroyImmediate(prefab);
+            return saved;
+        }
+
         private static void BuildArena()
         {
             ConfigurePixelSprite("Assets/Farming Asset Pack/farming-cow.png");
@@ -164,6 +445,7 @@ namespace UdderDestruction.Editor
             ConfigurePixelSprite("Assets/Farming Asset Pack/farming-chicken.png");
             ConfigurePixelSprite("Assets/Farming Asset Pack/farming-tileset.png");
             ConfigurePixelSprite("Assets/Farming Asset Pack/farming-water.png");
+            ConfigureSinglePixelSprite("Assets/Farming Asset Pack/Butter_Puddle.png");
             ConfigurePixelSprite("Assets/Farming Asset Pack/farming-houses.png");
 
             Sprite tile = LoadSprite("Assets/Farming Asset Pack/farming-tileset.png", "farming-tileset_0");
@@ -237,7 +519,7 @@ namespace UdderDestruction.Editor
 #endif
         }
 
-        private static void BuildHudCanvas(UdderHud hud)
+        private static void BuildHudCanvas(UdderHud hud, UdderGameController game)
         {
             GameObject canvasObject = new("Udder HUD Canvas");
             var canvas = canvasObject.AddComponent<Canvas>();
@@ -249,7 +531,7 @@ namespace UdderDestruction.Editor
 
             Image healthFill = CreateHudBar(canvasObject.transform, "HEALTH", new Vector2(22f, -22f), new Color(0.9f, 0.04f, 0.04f), 1f);
             Image bovinityFill = CreateHudBar(canvasObject.transform, "BOVINITY", new Vector2(22f, -58f), new Color(1f, 0.86f, 0.08f), 0f);
-            TMP_Text statusText = CreateHudText(canvasObject.transform, "STATUS", new Vector2(22f, -98f), 18, TextAlignmentOptions.Left);
+            TMP_Text statusText = CreateHudText(canvasObject.transform, "MOOLISSA HOOFMAN WAVE 1 LVL 1 DD 0", new Vector2(22f, -98f), 18, TextAlignmentOptions.Left);
             TMP_Text hintText = CreateHudText(canvasObject.transform, "WASD/ARROWS MOVE. ATTACKS FIRE ON THEIR OWN TIMERS.", new Vector2(22f, 24f), 15, TextAlignmentOptions.Left);
             hintText.rectTransform.anchorMin = new Vector2(0f, 0f);
             hintText.rectTransform.anchorMax = new Vector2(0f, 0f);
@@ -257,6 +539,91 @@ namespace UdderDestruction.Editor
 
             GameObject powerChoicePanel = BuildPowerChoicePanel(canvasObject.transform, out List<Button> powerChoiceButtons);
             hud.BindInspectableElements(healthFill, bovinityFill, statusText, hintText, powerChoicePanel, powerChoiceButtons);
+            BuildMainMenu(canvasObject.transform, game);
+        }
+
+        private static void BuildMainMenu(Transform parent, UdderGameController game)
+        {
+            GameObject overlay = new("Main Menu Overlay");
+            overlay.transform.SetParent(parent, false);
+            var overlayRect = overlay.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.pivot = new Vector2(0.5f, 0.5f);
+            overlayRect.anchoredPosition = Vector2.zero;
+            overlayRect.sizeDelta = Vector2.zero;
+            overlay.AddComponent<CanvasGroup>();
+
+            GameObject panel = new("Main Menu Panel");
+            panel.transform.SetParent(overlay.transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = new Vector2(560f, 560f);
+            var panelImage = panel.AddComponent<Image>();
+            panelImage.sprite = game.uiPanelSprite;
+            panelImage.type = game.uiPanelSprite ? Image.Type.Sliced : Image.Type.Simple;
+            panelImage.color = game.uiPanelSprite ? new Color(1f, 1f, 1f, 0.96f) : new Color(0f, 0f, 0f, 0.79f);
+
+            TMP_Text title = CreateHudText(panel.transform, "Udder Destruction", new Vector2(0f, 190f), 46, TextAlignmentOptions.Center);
+            title.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            title.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            title.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            title.rectTransform.sizeDelta = new Vector2(0f, 70f);
+            title.color = Color.white;
+
+            game.mainMenuOverlay = overlay;
+            game.startGameButton = CreateMainMenuButton(panel.transform, "Start Game", new Vector2(0f, 140f), true, game.uiButtonSprite, game.uiButtonPressedSprite);
+            game.soundSettingsButton = CreateMainMenuButton(panel.transform, "Sound Settings", new Vector2(0f, 70f), false, game.uiButtonSprite, game.uiButtonPressedSprite);
+            game.infoButton = CreateMainMenuButton(panel.transform, "Info", new Vector2(0f, 0f), false, game.uiButtonSprite, game.uiButtonPressedSprite);
+            game.aboutButton = CreateMainMenuButton(panel.transform, "About", new Vector2(0f, -70f), false, game.uiButtonSprite, game.uiButtonPressedSprite);
+            game.exitGameButton = CreateMainMenuButton(panel.transform, "Exit Game", new Vector2(0f, -140f), true, game.uiButtonSprite, game.uiButtonPressedSprite);
+        }
+
+        private static Button CreateMainMenuButton(Transform parent, string labelText, Vector2 anchoredPosition, bool interactable, Sprite buttonSprite, Sprite pressedSprite)
+        {
+            GameObject buttonObject = new("Menu " + labelText);
+            buttonObject.transform.SetParent(parent, false);
+            var rect = buttonObject.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(360f, 52f);
+
+            var image = buttonObject.AddComponent<Image>();
+            image.sprite = buttonSprite;
+            image.type = buttonSprite ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = buttonSprite ? new Color(1f, 1f, 1f, interactable ? 1f : 0.58f) : new Color(0f, 0f, 0f, interactable ? 0.66f : 0.38f);
+
+            var button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.interactable = interactable;
+            ColorBlock colors = button.colors;
+            colors.normalColor = interactable ? Color.white : new Color(0.62f, 0.62f, 0.62f, 1f);
+            colors.highlightedColor = new Color(1.08f, 1.02f, 0.88f, 1f);
+            colors.pressedColor = new Color(0.82f, 0.74f, 0.58f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            button.colors = colors;
+            if (pressedSprite)
+            {
+                SpriteState state = button.spriteState;
+                state.pressedSprite = pressedSprite;
+                state.selectedSprite = buttonSprite ? buttonSprite : image.sprite;
+                button.spriteState = state;
+            }
+
+            TMP_Text label = CreateHudText(buttonObject.transform, labelText, Vector2.zero, 26, TextAlignmentOptions.Center);
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            label.rectTransform.anchoredPosition = Vector2.zero;
+            label.rectTransform.sizeDelta = Vector2.zero;
+            label.color = interactable ? Color.white : new Color(0.72f, 0.72f, 0.72f);
+            label.outlineWidth = 0f;
+            return button;
         }
 
         private static void BuildRuntimeSpawnTemplates(UdderGameController game)
@@ -269,7 +636,7 @@ namespace UdderDestruction.Editor
             CreateProjectileTemplate(root.transform, "Spoiled Milk Shot Template", game.bottleSprite, new Color(0.55f, 1f, 0.45f), MilkMode.SpoiledMilk, 6f);
             CreateProjectileTemplate(root.transform, "Raw Milk Shot Template", game.rawMilkSprite, Color.white, MilkMode.RawMilk, 5.1f);
 
-            GameObject butter = CreateTemplateSprite(root.transform, "Weaponized Butter Slick Template", game.butterSprite, new Color(1f, 0.84f, 0.12f, 0.72f), Vector3.one, -1);
+            GameObject butter = CreateTemplateSprite(root.transform, "Weaponized Butter Slick Template", game.butterSprite, Color.white, Vector3.one, -1);
             var butterCollider = butter.AddComponent<BoxCollider2D>();
             butterCollider.isTrigger = true;
             butterCollider.size = Vector2.one;
@@ -365,7 +732,20 @@ namespace UdderDestruction.Editor
             body.freezeRotation = true;
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             var collider = enemyObject.AddComponent<CircleCollider2D>();
-            collider.radius = boss ? 0.34f : 0.28f;
+            if (boss)
+            {
+                collider.radius = 0.166f;
+            }
+            else if (name.Contains("Ham"))
+            {
+                collider.radius = 0.13f;
+                collider.offset = new Vector2(0f, -0.02f);
+            }
+            else
+            {
+                collider.radius = 0.12f;
+                collider.offset = Vector2.zero;
+            }
             var enemy = enemyObject.AddComponent<UdderEnemy>();
             enemy.downSprite = downSprite;
             enemy.sideSprite = sideSprite;
@@ -430,7 +810,7 @@ namespace UdderDestruction.Editor
             var back = panel.AddComponent<Image>();
             back.color = new Color(0f, 0f, 0f, 0.82f);
 
-            TMP_Text title = CreateHudText(panel.transform, "BOVINITY LEVEL UP", new Vector2(0f, -18f), 24, TextAlignmentOptions.Center);
+            TMP_Text title = CreateHudText(panel.transform, "BOVINITY LEVEL UP", new Vector2(0f, -36f), 24, TextAlignmentOptions.Center);
             title.rectTransform.anchorMin = new Vector2(0f, 1f);
             title.rectTransform.anchorMax = new Vector2(1f, 1f);
             title.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -438,7 +818,7 @@ namespace UdderDestruction.Editor
 
             powerChoiceButtons = new List<Button>();
             for (int i = 0; i < 3; i++)
-                powerChoiceButtons.Add(CreatePowerChoiceButton(panel.transform, new Vector2(-200f + i * 200f, -122f)));
+                powerChoiceButtons.Add(CreatePowerChoiceButton(panel.transform, new Vector2(-170f + i * 170f, -138f)));
 
             panel.SetActive(false);
             return panel;
@@ -453,7 +833,7 @@ namespace UdderDestruction.Editor
             rect.anchorMax = new Vector2(0.5f, 1f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = new Vector2(172f, 96f);
+            rect.sizeDelta = new Vector2(148f, 72f);
 
             var image = buttonObject.AddComponent<Image>();
             image.color = new Color(1f, 0.86f, 0.12f, 0.92f);
@@ -464,7 +844,7 @@ namespace UdderDestruction.Editor
             colors.pressedColor = new Color(0.92f, 0.62f, 0.08f, 1f);
             button.colors = colors;
 
-            TMP_Text label = CreateHudText(buttonObject.transform, "POWER", new Vector2(0f, -18f), 18, TextAlignmentOptions.Center);
+            TMP_Text label = CreateHudText(buttonObject.transform, "POWER", new Vector2(0f, -18f), 15, TextAlignmentOptions.Center);
             label.rectTransform.anchorMin = Vector2.zero;
             label.rectTransform.anchorMax = Vector2.one;
             label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
@@ -485,7 +865,7 @@ namespace UdderDestruction.Editor
             backRect.anchorMax = new Vector2(0f, 1f);
             backRect.pivot = new Vector2(0f, 1f);
             backRect.anchoredPosition = anchoredPosition;
-            backRect.sizeDelta = new Vector2(300f, 26f);
+            backRect.sizeDelta = new Vector2(300f, 30f);
             var backImage = back.AddComponent<Image>();
             backImage.color = new Color(0f, 0f, 0f, 0.72f);
 
@@ -495,17 +875,18 @@ namespace UdderDestruction.Editor
             fillRect.anchorMin = Vector2.zero;
             fillRect.anchorMax = Vector2.one;
             fillRect.pivot = new Vector2(0f, 0.5f);
-            fillRect.offsetMin = new Vector2(3f, 3f);
-            fillRect.offsetMax = new Vector2(-3f, -3f);
+            fillRect.offsetMin = new Vector2(95.55f, 9.61f);
+            fillRect.offsetMax = new Vector2(-29.6f, -9.62f);
             var fillImage = fill.AddComponent<Image>();
             fillImage.color = fillColor;
             fillImage.type = Image.Type.Simple;
             fillRect.localScale = new Vector3(fillAmount, 1f, 1f);
 
-            TMP_Text text = CreateHudText(back.transform, label, new Vector2(8f, -4f), 16, TextAlignmentOptions.Left);
+            TMP_Text text = CreateHudText(back.transform, label, new Vector2(34f, -7f), 13, TextAlignmentOptions.Left);
             text.rectTransform.anchorMin = new Vector2(0f, 1f);
             text.rectTransform.anchorMax = new Vector2(1f, 1f);
-            text.rectTransform.sizeDelta = new Vector2(0f, 24f);
+            text.rectTransform.sizeDelta = new Vector2(-68f, 22f);
+            text.color = Color.black;
             return fillImage;
         }
 
@@ -521,7 +902,7 @@ namespace UdderDestruction.Editor
             rect.sizeDelta = new Vector2(1120f, 34f);
 
             var tmp = textObject.AddComponent<TextMeshProUGUI>();
-            tmp.font = LoadAsset<TMP_FontAsset>("Assets/PixelBattleText/Fonts/Alphapix.asset");
+            tmp.font = GetWoodenTmpFontAsset();
             tmp.fontSize = size;
             tmp.alignment = alignment;
             tmp.text = text;
@@ -556,6 +937,41 @@ namespace UdderDestruction.Editor
             return LoadFirstSprite(path);
         }
 
+        private static TMP_FontAsset GetWoodenTmpFontAsset()
+        {
+            const string assetPath = "Assets/UdderDestruction/BMYEONSUNG_TMP.asset";
+            TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(assetPath);
+            if (existing && existing.atlasTexture)
+                return existing;
+            if (existing)
+                AssetDatabase.DeleteAsset(assetPath);
+
+            Font sourceFont = AssetDatabase.LoadAssetAtPath<Font>("Assets/Fantasy Wooden GUI  Free/BMYEONSUNG_ttf.ttf");
+            if (!sourceFont)
+                return LoadAsset<TMP_FontAsset>("Assets/PixelBattleText/Fonts/Alphapix.asset");
+
+            TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(
+                sourceFont,
+                90,
+                9,
+                GlyphRenderMode.SDFAA,
+                1024,
+                1024,
+                AtlasPopulationMode.Dynamic,
+                true);
+            fontAsset.name = "BMYEONSUNG_TMP";
+            fontAsset.TryAddCharacters(
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?'\"-+:/() %><",
+                out _);
+            AssetDatabase.CreateAsset(fontAsset, assetPath);
+            if (fontAsset.material)
+                AssetDatabase.AddObjectToAsset(fontAsset.material, fontAsset);
+            if (fontAsset.atlasTexture)
+                AssetDatabase.AddObjectToAsset(fontAsset.atlasTexture, fontAsset);
+            AssetDatabase.SaveAssets();
+            return fontAsset;
+        }
+
         private static Sprite LoadSprite(string path, string name)
         {
             Object[] assets = AssetDatabase.LoadAllAssetsAtPath(path);
@@ -576,6 +992,29 @@ namespace UdderDestruction.Editor
             importer.filterMode = FilterMode.Point;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+        }
+
+        private static void ConfigureSinglePixelSprite(string path)
+        {
+            if (AssetImporter.GetAtPath(path) is not TextureImporter importer)
+                return;
+
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaSource = TextureImporterAlphaSource.FromInput;
+            importer.alphaIsTransparency = true;
+            importer.filterMode = FilterMode.Point;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.mipmapEnabled = false;
+            importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings
+            {
+                name = "Standalone",
+                overridden = true,
+                maxTextureSize = 2048,
+                format = TextureImporterFormat.RGBA32,
+                textureCompression = TextureImporterCompression.Uncompressed
+            });
             importer.SaveAndReimport();
         }
 

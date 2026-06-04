@@ -29,6 +29,6 @@ namespace UdderDestruction
         MaillardReaction,
         Rawhide,
         AuraFarming,
-        PrionPulse
+        PrionInfection
     }
 }
