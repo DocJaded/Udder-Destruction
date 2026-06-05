@@ -21,6 +21,7 @@ namespace UdderDestruction
         public GameObject prionIndicatorPrefab;
         public UdderBossType bossType = UdderBossType.MiyamotoMoosashi;
         public UdderEnemyKind enemyKind = UdderEnemyKind.DebtChicken;
+        public int rewardWave;
 
         private UdderGameController game;
         private UdderPlayer player;
@@ -37,6 +38,7 @@ namespace UdderDestruction
         private float condensedMilkTick;
         private float condensedMilkDamagePerSecond;
         private MilkMode condensedMilkMode = MilkMode.WholeMilk;
+        private float sleepTimer;
         private float prionTimer;
         private float prionTick;
         private float prionDamagePerSecond;
@@ -72,6 +74,7 @@ namespace UdderDestruction
         public bool IsSliding => slideTimer > 0f;
         public bool IsRawMilkContagious => rawMilkTimer > 0f && !IsBoss;
         public bool IsPrionInfected => prionTimer > 0f;
+        public bool IsSleeping => sleepTimer > 0f;
         public bool IsBoss { get; set; }
         public bool IsInvulnerable { get; set; }
         public bool UsesCustomMovement { get; set; }
@@ -113,14 +116,19 @@ namespace UdderDestruction
             UpdateCondensedMilk();
             if (health <= 0f)
                 return;
+            if (sleepTimer > 0f)
+                sleepTimer -= Time.deltaTime;
 
-            UdderEnemy prionTarget = IsPrionInfected ? game.FindNearestPrionTarget(this) : null;
+            Transform milkshakeTarget = game.GetActiveMilkshakeTarget();
+            UdderEnemy prionTarget = IsPrionInfected && !milkshakeTarget ? game.FindNearestPrionTarget(this) : null;
             Vector3 targetPosition = UsesCustomMovement ? transform.position : player.transform.position;
-            if (IsPrionInfected)
+            if (milkshakeTarget)
+                targetPosition = milkshakeTarget.position;
+            else if (IsPrionInfected)
                 targetPosition = prionTarget ? prionTarget.transform.position : transform.position;
             Vector2 delta = targetPosition - transform.position;
             Vector2 facingDirection = delta;
-            if (delta.sqrMagnitude > 0.01f)
+            if (!IsSleeping && delta.sqrMagnitude > 0.01f)
             {
                 Vector2 direction;
                 float currentSpeed = rawMilkHoldTimer > 0f ? 0f : speed;
@@ -182,11 +190,14 @@ namespace UdderDestruction
                 facingDirection = direction;
             }
 
-            if (IsPrionInfected && prionTarget && delta.sqrMagnitude <= 0.42f * 0.42f && prionAttackTimer <= 0f)
+            if (!IsSleeping && IsPrionInfected && prionTarget && delta.sqrMagnitude <= 0.42f * 0.42f && prionAttackTimer <= 0f)
             {
                 prionAttackTimer = 0.35f;
                 prionTarget.TakePrionDamage(4f);
             }
+
+            if (!IsSleeping && milkshakeTarget && delta.sqrMagnitude <= 0.75f * 0.75f && milkshakeTarget.TryGetComponent(out UdderMilkshake milkshake))
+                milkshake.TakeDamage(contactDamage * Time.deltaTime);
 
             UdderSpriteFacing.Apply(spriteRenderer, facingDirection, downSprite, sideSprite, upSprite);
 
@@ -237,7 +248,7 @@ namespace UdderDestruction
             }
             else if (spriteRenderer && !IsPrionInfected)
             {
-                spriteRenderer.color = baseColor;
+                spriteRenderer.color = IsSleeping ? Color.Lerp(baseColor, new Color(0.68f, 0.82f, 1f), 0.6f + Mathf.Sin(Time.time * 5f) * 0.12f) : baseColor;
                 UpdateRawMilkFlies(false);
             }
 
@@ -283,7 +294,21 @@ namespace UdderDestruction
             }
 
             if (!collision.collider.TryGetComponent(out UdderPlayer cow))
+            {
+                if (collision.collider.TryGetComponent(out UdderAlliedCow alliedCow))
+                {
+                    if (meleeTimer <= 0f)
+                    {
+                        meleeTimer = 0.28f;
+                        TakeHornDamage(IsSliding ? 7.5f : 5.5f);
+                    }
+
+                    if (!IsSliding && !IsPrionInfected && !IsSleeping)
+                        alliedCow.TakeDamage(contactDamage * Time.deltaTime);
+                }
+
                 return;
+            }
 
             if (meleeTimer <= 0f)
             {
@@ -293,7 +318,7 @@ namespace UdderDestruction
                     TakeHornDamage(IsSliding ? stompDamage + 2f : stompDamage);
             }
 
-            if (!IsSliding && !IsPrionInfected)
+            if (!IsSliding && !IsPrionInfected && !IsSleeping)
             {
                 float damage = chargeTimer > 0f ? contactDamage * 3.5f : contactDamage * Time.deltaTime;
                 cow.TakeDamage(damage);
@@ -414,15 +439,34 @@ namespace UdderDestruction
 
         public void ApplyCondensedMilk(float attackDamage, int level, MilkMode sourceMode)
         {
+            ApplyCondensedMilk(attackDamage, level, sourceMode, 1f, 1f);
+        }
+
+        public void ApplyCondensedMilk(float attackDamage, int level, MilkMode sourceMode, float damageMultiplier, float durationMultiplier)
+        {
             if (IsInvulnerable)
                 return;
 
-            float duration = Mathf.Max(0.1f, level * 0.3f);
-            float totalDamage = attackDamage * level * 0.1f;
+            float duration = Mathf.Max(0.1f, level * 0.3f * Mathf.Max(0.1f, durationMultiplier));
+            float totalDamage = attackDamage * level * 0.1f * Mathf.Max(0.1f, damageMultiplier);
             condensedMilkTimer = Mathf.Max(condensedMilkTimer, duration);
             condensedMilkDamagePerSecond = Mathf.Max(condensedMilkDamagePerSecond, totalDamage / duration);
             condensedMilkMode = sourceMode;
             condensedMilkTick = Mathf.Min(condensedMilkTick <= 0f ? 0.3f : condensedMilkTick, 0.3f);
+        }
+
+        public void ApplySleep(float duration)
+        {
+            if (health <= 0f || IsInvulnerable)
+                return;
+
+            bool wasAwake = sleepTimer <= 0f;
+            sleepTimer = Mathf.Max(sleepTimer, duration);
+            chargeTimer = 0f;
+            chargeWindupTimer = 0f;
+            slideTimer = 0f;
+            if (wasAwake)
+                game.ShowEnemyDebuffText(transform, "Zzz...");
         }
 
         public void ApplyPrionPulse(float damagePerSecond, float spreadChance)
@@ -520,7 +564,7 @@ namespace UdderDestruction
             finalAmount = crit ? finalAmount * 2.2f : finalAmount;
             health -= finalAmount;
 
-            if (mode == MilkMode.Buttermilk)
+            if (mode == MilkMode.Buttermilk || mode == MilkMode.TresLeches)
             {
                 acidTimer = 1.2f;
                 StartButterSlide(GetButtermilkSlideDuration(effectLevel), 3.4f);

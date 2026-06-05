@@ -103,6 +103,7 @@ namespace UdderDestruction.Editor
             game.blackberriesSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Botany/Singles/49_Blackberries.png");
             game.wholeMilkSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/14_Snail_Slime.png");
             game.buttermilkSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/123_MetalChunk_Gold.png");
+            game.tresLechesSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/223_MetalChunk_Angelic.png");
             game.rawMilkSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/83_MetalChunk_Silver.png");
             game.rawMilkFlySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/93_Fly.png");
             game.cottonDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/54_Cotton.png");
@@ -114,6 +115,7 @@ namespace UdderDestruction.Editor
             game.beeatriceSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/21_Wasp.png");
             game.beeDroneSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/22_Bee_Drone.png");
             game.honeycombSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/30_Honeycomb.png");
+            game.milkshakeSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Potions/Singles/315_Potion_Blank_Pure_M.png");
             game.damageText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_damage.asset");
             game.critText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_crit.asset");
             game.healText = LoadAsset<TextAnimation>("Assets/PixelBattleText/Animation Presets/textAnim_healing.asset");
@@ -194,6 +196,40 @@ namespace UdderDestruction.Editor
             EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
             AssetDatabase.SaveAssets();
             Debug.Log("Main menu canvas objects built in the current scene.");
+        }
+
+        [MenuItem("Udder Destruction/Build Test Scene")]
+        public static void BuildTestScene()
+        {
+            const string mainScenePath = "Assets/Scenes/SampleScene.unity";
+            const string testScenePath = "Assets/Scenes/test scene.unity";
+
+            Scene scene = EditorSceneManager.OpenScene(mainScenePath, OpenSceneMode.Single);
+            EditorSceneManager.SaveScene(scene, testScenePath);
+            scene = EditorSceneManager.OpenScene(testScenePath, OpenSceneMode.Single);
+
+            UdderGameController game = Object.FindFirstObjectByType<UdderGameController>();
+            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+            if (!game || !canvas)
+            {
+                Debug.LogError("Cannot build test scene: scene needs an UdderGameController and HUD Canvas.");
+                return;
+            }
+
+            game.testSpawnScene = true;
+            if (game.mainMenuOverlay)
+                game.mainMenuOverlay.SetActive(false);
+
+            Transform existing = canvas.transform.Find("Test Spawn Menu");
+            if (existing)
+                Object.DestroyImmediate(existing.gameObject);
+
+            BuildTestSpawnMenu(canvas.transform, game);
+            EditorUtility.SetDirty(game);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, testScenePath);
+            AssetDatabase.SaveAssets();
+            Debug.Log("Test scene built at Assets/Scenes/test scene.unity.");
         }
 
         [MenuItem("Udder Destruction/Build Gameplay Prefabs In Current Scene")]
@@ -688,6 +724,166 @@ namespace UdderDestruction.Editor
             game.infoButton = CreateMainMenuButton(panel.transform, "Info", new Vector2(0f, 0f), false, game.uiButtonSprite, game.uiButtonPressedSprite);
             game.aboutButton = CreateMainMenuButton(panel.transform, "About", new Vector2(0f, -70f), false, game.uiButtonSprite, game.uiButtonPressedSprite);
             game.exitGameButton = CreateMainMenuButton(panel.transform, "Exit Game", new Vector2(0f, -140f), true, game.uiButtonSprite, game.uiButtonPressedSprite);
+        }
+
+        private static void BuildTestSpawnMenu(Transform parent, UdderGameController game)
+        {
+            GameObject panel = new("Test Spawn Menu");
+            panel.transform.SetParent(parent, false);
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-24f, -24f);
+            rect.sizeDelta = new Vector2(360f, 184f);
+
+            var image = panel.AddComponent<Image>();
+            image.sprite = game.uiPanelSprite;
+            image.type = game.uiPanelSprite ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = game.uiPanelSprite ? new Color(1f, 1f, 1f, 0.94f) : new Color(0f, 0f, 0f, 0.78f);
+
+            TMP_Text title = CreateHudText(panel.transform, "TEST SPAWNER", new Vector2(18f, -16f), 22, TextAlignmentOptions.Left);
+            title.rectTransform.anchorMin = new Vector2(0f, 1f);
+            title.rectTransform.anchorMax = new Vector2(1f, 1f);
+            title.rectTransform.sizeDelta = new Vector2(-36f, 30f);
+            title.color = Color.white;
+
+            TMP_Dropdown dropdown = CreateTestDropdown(panel.transform, game, new Vector2(18f, -56f));
+            Button spawnButton = CreateMainMenuButton(panel.transform, "Spawn", new Vector2(0f, -116f), true, game.uiButtonSprite, game.uiButtonPressedSprite);
+            spawnButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 44f);
+
+            TMP_Text status = CreateHudText(panel.transform, "Select a unit, then spawn it near Moolissa.", new Vector2(18f, -148f), 13, TextAlignmentOptions.Left);
+            status.rectTransform.anchorMin = new Vector2(0f, 1f);
+            status.rectTransform.anchorMax = new Vector2(1f, 1f);
+            status.rectTransform.sizeDelta = new Vector2(-36f, 26f);
+            status.color = Color.black;
+            status.outlineWidth = 0f;
+
+            var menu = panel.AddComponent<UdderTestSpawnMenu>();
+            menu.game = game;
+            menu.dropdown = dropdown;
+            menu.spawnButton = spawnButton;
+            menu.statusText = status;
+        }
+
+        private static TMP_Dropdown CreateTestDropdown(Transform parent, UdderGameController game, Vector2 anchoredPosition)
+        {
+            GameObject dropdownObject = new("Unit Spawn Dropdown");
+            dropdownObject.transform.SetParent(parent, false);
+            var rect = dropdownObject.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(-36f, 38f);
+
+            var image = dropdownObject.AddComponent<Image>();
+            image.sprite = game.uiButtonSprite;
+            image.type = game.uiButtonSprite ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = game.uiButtonSprite ? Color.white : new Color(0f, 0f, 0f, 0.66f);
+
+            TMP_Text label = CreateHudText(dropdownObject.transform, "Enemy: Debt Chicken", new Vector2(12f, -7f), 15, TextAlignmentOptions.Left);
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.pivot = new Vector2(0f, 0.5f);
+            label.rectTransform.anchoredPosition = new Vector2(12f, 0f);
+            label.rectTransform.sizeDelta = new Vector2(-44f, 0f);
+            label.color = Color.white;
+            label.outlineWidth = 0f;
+
+            TMP_Text arrow = CreateHudText(dropdownObject.transform, "v", new Vector2(-26f, -7f), 17, TextAlignmentOptions.Center);
+            arrow.rectTransform.anchorMin = new Vector2(1f, 0f);
+            arrow.rectTransform.anchorMax = new Vector2(1f, 1f);
+            arrow.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            arrow.rectTransform.anchoredPosition = new Vector2(-22f, 0f);
+            arrow.rectTransform.sizeDelta = new Vector2(24f, 0f);
+            arrow.color = Color.white;
+            arrow.outlineWidth = 0f;
+
+            GameObject template = BuildDropdownTemplate(dropdownObject.transform, game);
+            var dropdown = dropdownObject.AddComponent<TMP_Dropdown>();
+            dropdown.targetGraphic = image;
+            dropdown.captionText = label;
+            dropdown.template = template.GetComponent<RectTransform>();
+            dropdown.itemText = template.transform.Find("Viewport/Content/Item/HUD Option").GetComponent<TMP_Text>();
+            template.SetActive(false);
+            return dropdown;
+        }
+
+        private static GameObject BuildDropdownTemplate(Transform parent, UdderGameController game)
+        {
+            GameObject template = new("Template");
+            template.transform.SetParent(parent, false);
+            var rect = template.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -2f);
+            rect.sizeDelta = new Vector2(0f, 260f);
+
+            var image = template.AddComponent<Image>();
+            image.sprite = game.uiPanelSprite;
+            image.type = game.uiPanelSprite ? Image.Type.Sliced : Image.Type.Simple;
+            image.color = game.uiPanelSprite ? Color.white : new Color(0f, 0f, 0f, 0.88f);
+            var scrollRect = template.AddComponent<ScrollRect>();
+
+            GameObject viewport = new("Viewport");
+            viewport.transform.SetParent(template.transform, false);
+            var viewportRect = viewport.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.sizeDelta = Vector2.zero;
+            viewport.AddComponent<Mask>().showMaskGraphic = false;
+            viewport.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.02f);
+
+            GameObject content = new("Content");
+            content.transform.SetParent(viewport.transform, false);
+            var contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(1f, 1f);
+            contentRect.pivot = new Vector2(0.5f, 1f);
+            contentRect.anchoredPosition = Vector2.zero;
+            contentRect.sizeDelta = new Vector2(0f, 520f);
+
+            GameObject item = new("Item");
+            item.transform.SetParent(content.transform, false);
+            var itemRect = item.AddComponent<RectTransform>();
+            itemRect.anchorMin = new Vector2(0f, 1f);
+            itemRect.anchorMax = new Vector2(1f, 1f);
+            itemRect.pivot = new Vector2(0.5f, 1f);
+            itemRect.anchoredPosition = Vector2.zero;
+            itemRect.sizeDelta = new Vector2(0f, 34f);
+
+            var toggle = item.AddComponent<Toggle>();
+            var itemBackground = item.AddComponent<Image>();
+            itemBackground.color = new Color(0f, 0f, 0f, 0.36f);
+            toggle.targetGraphic = itemBackground;
+
+            GameObject checkmark = new("Item Checkmark");
+            checkmark.transform.SetParent(item.transform, false);
+            var checkRect = checkmark.AddComponent<RectTransform>();
+            checkRect.anchorMin = new Vector2(0f, 0.5f);
+            checkRect.anchorMax = new Vector2(0f, 0.5f);
+            checkRect.pivot = new Vector2(0.5f, 0.5f);
+            checkRect.anchoredPosition = new Vector2(16f, 0f);
+            checkRect.sizeDelta = new Vector2(16f, 16f);
+            var checkImage = checkmark.AddComponent<Image>();
+            checkImage.color = new Color(1f, 0.86f, 0.12f);
+            toggle.graphic = checkImage;
+
+            TMP_Text itemLabel = CreateHudText(item.transform, "Option", new Vector2(34f, -7f), 14, TextAlignmentOptions.Left);
+            itemLabel.rectTransform.anchorMin = Vector2.zero;
+            itemLabel.rectTransform.anchorMax = Vector2.one;
+            itemLabel.rectTransform.anchoredPosition = new Vector2(34f, 0f);
+            itemLabel.rectTransform.sizeDelta = new Vector2(-44f, 0f);
+            itemLabel.color = Color.white;
+            itemLabel.outlineWidth = 0f;
+
+            scrollRect.viewport = viewportRect;
+            scrollRect.content = contentRect;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            return template;
         }
 
         private static Button CreateMainMenuButton(Transform parent, string labelText, Vector2 anchoredPosition, bool interactable, Sprite buttonSprite, Sprite pressedSprite)

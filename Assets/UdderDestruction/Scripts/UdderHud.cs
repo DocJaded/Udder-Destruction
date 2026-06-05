@@ -98,7 +98,8 @@ namespace UdderDestruction
 
                 UdderPower power = choices[i];
                 TMP_Text label = button.GetComponentInChildren<TMP_Text>();
-                label.text = $"{UdderPlayer.GetPowerLabel(power).ToUpperInvariant()}\nLV {player.GetPowerLevel(power)} > {Mathf.Min(10, player.GetPowerLevel(power) + 1)}";
+                int level = player.GetRawPowerLevel(power);
+                label.text = $"{UdderPlayer.GetPowerLabel(power).ToUpperInvariant()}\nLV {level} > {Mathf.Min(UdderPlayer.MaxPowerLevelValue, level + 1)}";
                 button.onClick.AddListener(() => powerChoiceCallback?.Invoke(power));
                 ConfigureHoverDescription(button, power);
             }
@@ -133,7 +134,8 @@ namespace UdderDestruction
         {
             EnsurePowerDescriptionPanel();
             powerDescriptionTitle.text = UdderPlayer.GetPowerLabel(power).ToUpperInvariant();
-            powerDescriptionBody.text = UdderPlayer.GetPowerDescription(power);
+            string levelUp = UdderPlayer.GetPowerLevelUpDescription(power);
+            powerDescriptionBody.text = string.IsNullOrEmpty(levelUp) ? UdderPlayer.GetPowerDescription(power) : UdderPlayer.GetPowerDescription(power) + "\n" + levelUp;
             powerDescriptionPanel.SetActive(true);
         }
 

@@ -10,6 +10,9 @@ namespace UdderDestruction
         public MilkMode mode;
         public int powerLevel = 1;
         public int condensedMilkLevel;
+        public float condensedMilkDamageMultiplier = 1f;
+        public float condensedMilkDurationMultiplier = 1f;
+        public float sleepDuration;
         public UdderGameController game;
         public float spinDegreesPerSecond = 240f;
         public float homingStrength = 7f;
@@ -107,8 +110,10 @@ namespace UdderDestruction
             }
 
             enemy.TakeDamage(damage, mode, true, powerLevel);
-            if (condensedMilkLevel > 0 && (mode == MilkMode.WholeMilk || mode == MilkMode.Buttermilk || mode == MilkMode.RawMilk))
-                enemy.ApplyCondensedMilk(damage, condensedMilkLevel, mode);
+            if (sleepDuration > 0f && mode == MilkMode.WholeMilk)
+                enemy.ApplySleep(sleepDuration);
+            if (condensedMilkLevel > 0 && (mode == MilkMode.WholeMilk || mode == MilkMode.Buttermilk || mode == MilkMode.RawMilk || mode == MilkMode.TresLeches))
+                enemy.ApplyCondensedMilk(damage, condensedMilkLevel, mode, condensedMilkDamageMultiplier, condensedMilkDurationMultiplier);
             Burst(false);
         }
 

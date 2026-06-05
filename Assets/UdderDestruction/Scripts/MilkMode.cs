@@ -9,7 +9,8 @@ namespace UdderDestruction
         Stomp,
         Dehydration,
         Aura,
-        Prion
+        Prion,
+        TresLeches
     }
 
     public enum UdderPower
@@ -29,6 +30,11 @@ namespace UdderDestruction
         MaillardReaction,
         Rawhide,
         AuraFarming,
-        PrionInfection
+        PrionInfection,
+        BovineIntervention,
+        CarbonHoofprint,
+        PastureBedtime,
+        Stampede,
+        TresLeches
     }
 }

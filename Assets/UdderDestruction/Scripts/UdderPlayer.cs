@@ -10,6 +10,10 @@ namespace UdderDestruction
     {
         private const int MaxPowerLevel = 10;
         private const float BaseBovinityMax = 5f;
+        private static readonly UdderPower[] CarbonHoofprintPrerequisites = { UdderPower.DairyAir, UdderPower.Stomp };
+        private static readonly UdderPower[] PastureBedtimePrerequisites = { UdderPower.DairyAir, UdderPower.WholeMilk };
+        private static readonly UdderPower[] StampedePrerequisites = { UdderPower.Stomp, UdderPower.PastureBedtime };
+        private static readonly UdderPower[] TresLechesPrerequisites = { UdderPower.WholeMilk, UdderPower.Buttermilk, UdderPower.CondensedMilk };
 
         public float maxHealth = 100f;
         public float maxBovinity = 5f;
@@ -24,6 +28,7 @@ namespace UdderDestruction
         public Sprite upSprite;
 
         private readonly int[] powerLevels = new int[System.Enum.GetValues(typeof(UdderPower)).Length];
+        private readonly bool[] disabledPowers = new bool[System.Enum.GetValues(typeof(UdderPower)).Length];
         private Rigidbody2D body;
         private SpriteRenderer spriteRenderer;
         private UdderGameController game;
@@ -49,12 +54,16 @@ namespace UdderDestruction
 
         public bool IsAlive => health > 0f;
         public float Health01 => health / maxHealth;
+        public float Health => health;
+        public bool IsAtFullHealth => health >= maxHealth - 0.01f;
         public float Bovinity => bovinity;
         public int BovinityLevel { get; private set; } = 1;
         public float Bovinity01 => maxBovinity <= 0f ? 0f : Mathf.Clamp01(bovinity / maxBovinity);
         public bool CanLevelBovinity => bovinity >= maxBovinity;
         public float StompDamage => GetPowerLevel(UdderPower.Stomp) > 0 ? stompDamage : 0f;
         public float CheeseItChance => 0.01f + GetPowerLevel(UdderPower.Legendary) * 0.01f;
+        public float BovinityAcquisitionBonus => GetPowerLevel(UdderPower.BovineIntervention) * 2.5f;
+        public static int MaxPowerLevelValue => MaxPowerLevel;
 
         public void Init(UdderGameController owner)
         {
@@ -70,7 +79,10 @@ namespace UdderDestruction
             milk = maxMilk;
             BovinityLevel = 1;
             for (int i = 0; i < powerLevels.Length; i++)
+            {
                 powerLevels[i] = 0;
+                disabledPowers[i] = false;
+            }
             powerLevels[(int)UdderPower.Stomp] = 1;
             wholeMilkTimer = 0.2f;
             buttermilkTimer = 1.1f;
@@ -124,6 +136,8 @@ namespace UdderDestruction
             TryFireMilkPower(UdderPower.Buttermilk, MilkMode.Buttermilk, ref buttermilkTimer, 1f, 9f, 1.1f);
             TryFireMilkPower(UdderPower.SpoiledMilk, MilkMode.SpoiledMilk, ref spoiledMilkTimer, 5f, 12f, 1f);
             TryFireMilkPower(UdderPower.RawMilk, MilkMode.RawMilk, ref rawMilkTimer, 1f, 14f, 0.85f);
+            TryFireTresLeches();
+            UpdateCarbonHoofprint();
             UpdateAuraFarming();
             UpdatePrionPulse();
 
@@ -173,6 +187,7 @@ namespace UdderDestruction
             if (health <= 0f)
                 return;
 
+            game?.RecordPlayerTookDamageThisWave();
             health -= amount;
             if (health <= 0f)
             {
@@ -225,12 +240,42 @@ namespace UdderDestruction
             milk = Mathf.Max(0f, milk - cost);
         }
 
+        private void TryFireTresLeches()
+        {
+            int level = GetPowerLevel(UdderPower.TresLeches);
+            if (level <= 0 || wholeMilkTimer > 0f)
+                return;
+
+            if (!game || !game.TryGetAutoAimDirectionInRange(transform.position, aim, game.GetMilkShotRange(MilkMode.TresLeches), false, out Vector2 fireDirection))
+                return;
+
+            wholeMilkTimer = fireInterval / (1f + (level - 1) * 0.1f);
+            SpendMilk(15f);
+            game.FireMilk(transform.position, fireDirection, MilkMode.TresLeches, GetTresLechesShotDamage(level), level, 10);
+        }
+
+        private float GetTresLechesShotDamage(int level)
+        {
+            const float levelTenMultiplier = 1f + (MaxPowerLevel - 1) * 0.12f;
+            float wholeMilkDamage = projectileDamage * 0.5f * levelTenMultiplier;
+            float buttermilkDamage = projectileDamage * 1.1f * levelTenMultiplier * 1.15f;
+            return (wholeMilkDamage + buttermilkDamage) * (1f + (level - 1) * 0.1f);
+        }
+
+        private void UpdateCarbonHoofprint()
+        {
+            int level = GetPowerLevel(UdderPower.CarbonHoofprint);
+            if (level > 0 && game)
+                game.UpdateCarbonHoofprintAura(transform, level);
+        }
+
         public void TakeDamage(float amount)
         {
             if (invulnerableTimer > 0f || health <= 0f)
                 return;
 
             health -= amount * (1f - GetDamageResistance());
+            game?.RecordPlayerTookDamageThisWave();
 
             if (health <= 0f)
             {
@@ -309,7 +354,7 @@ namespace UdderDestruction
 
         public void AddBovinity(float amount)
         {
-            bovinity += amount;
+            bovinity += amount + BovinityAcquisitionBonus;
         }
 
         public void CompleteBovinityLevelUp()
@@ -321,12 +366,31 @@ namespace UdderDestruction
 
         public int GetPowerLevel(UdderPower power)
         {
+            if (IsPowerDisabled(power))
+                return 0;
+
             return powerLevels[(int)power];
+        }
+
+        public int GetRawPowerLevel(UdderPower power)
+        {
+            return powerLevels[(int)power];
+        }
+
+        public bool IsPowerDisabled(UdderPower power)
+        {
+            return disabledPowers[(int)power];
+        }
+
+        public float GetPastureBedtimeSleepDuration()
+        {
+            int level = GetPowerLevel(UdderPower.PastureBedtime);
+            return level <= 0 ? 0f : 3f + Mathf.Max(0, level - 1);
         }
 
         public bool CanGainPowerLevel(UdderPower power, int gain)
         {
-            return GetPowerLevel(power) + gain <= MaxPowerLevel;
+            return !IsPowerDisabled(power) && GetRawPowerLevel(power) + gain <= MaxPowerLevel;
         }
 
         public int AddPowerLevel(UdderPower power, int gain)
@@ -335,8 +399,17 @@ namespace UdderDestruction
             int applied = Mathf.Min(gain, MaxPowerLevel - powerLevels[index]);
             int previousLevel = powerLevels[index];
             powerLevels[index] += applied;
+            if (IsCombinationPower(power) && previousLevel <= 0)
+                DisableCombinationPrerequisites(power);
             ApplyPassivePowerGain(power, previousLevel, applied);
             return applied;
+        }
+
+        private void DisableCombinationPrerequisites(UdderPower power)
+        {
+            UdderPower[] prerequisites = GetCombinationPrerequisites(power);
+            for (int i = 0; i < prerequisites.Length; i++)
+                disabledPowers[(int)prerequisites[i]] = true;
         }
 
         public static string GetPowerLabel(UdderPower power)
@@ -354,6 +427,11 @@ namespace UdderDestruction
                 UdderPower.MaillardReaction => "Maillard Reaction",
                 UdderPower.AuraFarming => "Aura Farming",
                 UdderPower.PrionInfection => "Prion Infection",
+                UdderPower.BovineIntervention => "Bovine Intervention",
+                UdderPower.CarbonHoofprint => "Carbon Hoofprint",
+                UdderPower.PastureBedtime => "Pasture Bedtime",
+                UdderPower.Stampede => "Stampede",
+                UdderPower.TresLeches => "Tres Leches",
                 _ => power.ToString(),
             };
         }
@@ -378,8 +456,61 @@ namespace UdderDestruction
                 UdderPower.Rawhide => "Reduces incoming damage. Starts at 10% resistance, then +1% per level.",
                 UdderPower.AuraFarming => "Attracts nearby drops. Each level adds one cow-collider radius to its attraction range.",
                 UdderPower.PrionInfection => "Infects enemies with prions, causing damage over time and making them attack other enemies. On death, infection has a level-scaled chance to spread within its AoE.",
+                UdderPower.BovineIntervention => "Adds +2.5 bovinity acquisition from all sources of bovinity per level.",
+                UdderPower.CarbonHoofprint => "Combination Power: Dairy Air becomes a permanent cloud aura that follows the player. Leveling increases cloud radius.",
+                UdderPower.PastureBedtime => "Combination Power: Whole Milk projectiles put enemies to sleep. Sea urchins are immune.",
+                UdderPower.Stampede => "Combination Power: Summons cow allies to fight alongside the player. Allies refresh each wave.",
+                UdderPower.TresLeches => "Combination Power: Combines Whole Milk fire rate, Buttermilk's status effect, and doubled Condensed Milk effects.",
                 _ => "No description available.",
             };
+        }
+
+        public static string GetPowerLevelUpDescription(UdderPower power)
+        {
+            return power switch
+            {
+                UdderPower.CarbonHoofprint => "+5% cloud radius per level.",
+                UdderPower.PastureBedtime => "+1s sleeping time per level.",
+                UdderPower.Stampede => "+1 cow ally per level. Allies refresh each wave.",
+                UdderPower.TresLeches => "+10% fire rate, straight damage, DoT damage, and DoT duration per level.",
+                _ => string.Empty,
+            };
+        }
+
+        public static bool IsCombinationPower(UdderPower power)
+        {
+            return power == UdderPower.CarbonHoofprint
+                || power == UdderPower.PastureBedtime
+                || power == UdderPower.Stampede
+                || power == UdderPower.TresLeches;
+        }
+
+        public static UdderPower[] GetCombinationPrerequisites(UdderPower power)
+        {
+            return power switch
+            {
+                UdderPower.CarbonHoofprint => CarbonHoofprintPrerequisites,
+                UdderPower.PastureBedtime => PastureBedtimePrerequisites,
+                UdderPower.Stampede => StampedePrerequisites,
+                UdderPower.TresLeches => TresLechesPrerequisites,
+                _ => System.Array.Empty<UdderPower>(),
+            };
+        }
+
+        public bool AreCombinationPrerequisitesMet(UdderPower power)
+        {
+            UdderPower[] prerequisites = GetCombinationPrerequisites(power);
+            if (prerequisites.Length == 0)
+                return true;
+
+            for (int i = 0; i < prerequisites.Length; i++)
+            {
+                UdderPower prerequisite = prerequisites[i];
+                if (IsPowerDisabled(prerequisite) || GetRawPowerLevel(prerequisite) < MaxPowerLevel)
+                    return false;
+            }
+
+            return true;
         }
 
         private void ApplyPassivePowerGain(UdderPower power, int previousLevel, int applied)

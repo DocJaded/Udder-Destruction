@@ -56,6 +56,7 @@ namespace UdderDestruction
         public Sprite blackberriesSprite;
         public Sprite wholeMilkSprite;
         public Sprite buttermilkSprite;
+        public Sprite tresLechesSprite;
         public Sprite rawMilkSprite;
         public Sprite rawMilkFlySprite;
         public Sprite cottonDeathSprite;
@@ -67,6 +68,7 @@ namespace UdderDestruction
         public Sprite beeatriceSprite;
         public Sprite beeDroneSprite;
         public Sprite honeycombSprite;
+        public Sprite milkshakeSprite;
 
         [Header("Battle Text")]
         public TextAnimation damageText;
@@ -93,6 +95,7 @@ namespace UdderDestruction
 
         [Header("Game Rules")]
         public UdderGameMode gameMode = UdderGameMode.Standard;
+        public bool testSpawnScene;
 
         [Header("Gameplay Prefabs")]
         public GameObject chickenEnemyPrefab;
@@ -115,9 +118,11 @@ namespace UdderDestruction
         public GameObject pickupPrefab;
         public GameObject rawMilkFlyPrefab;
         public GameObject prionIndicatorPrefab;
+        public GameObject milkshakePrefab;
 
         private readonly List<UdderEnemy> enemies = new();
         private readonly List<UdderSeaUrchin> seaUrchins = new();
+        private readonly List<UdderAlliedCow> alliedCows = new();
         private readonly List<Vector2> waterBodyCenters = new();
         private readonly List<Vector2> waterBodyRadii = new();
         private readonly List<Vector2> contaminatedWaterCenters = new();
@@ -143,6 +148,10 @@ namespace UdderDestruction
         private UdderHud hud;
         private GameObject gameOverOverlay;
         private GameObject pauseOverlay;
+        private UdderDairyAirCloud carbonHoofprintAura;
+        private UdderMilkshake activeMilkshake;
+        private bool playerTookDamageThisWave;
+        private bool spawningMilkshakeRush;
         private static TMP_FontAsset sharedUiFont;
         private bool mainMenuActive = true;
         private bool paused;
@@ -161,12 +170,14 @@ namespace UdderDestruction
             {
                 MilkMode.SpoiledMilk => 6.2f,
                 MilkMode.RawMilk => 5.8f,
+                MilkMode.TresLeches => 7.4f,
                 _ => 7.4f,
             };
             float life = mode switch
             {
                 MilkMode.SpoiledMilk => 0.425f,
                 MilkMode.RawMilk => 0.6f,
+                MilkMode.TresLeches => 0.55f,
                 _ => 0.55f,
             };
             return speed * life;
@@ -182,6 +193,15 @@ namespace UdderDestruction
 
             if (player)
                 player.Init(this);
+
+            if (testSpawnScene)
+            {
+                if (mainMenuOverlay)
+                    mainMenuOverlay.SetActive(false);
+                mainMenuActive = false;
+                nextWaveTimer = float.PositiveInfinity;
+                return;
+            }
 
             ShowMainMenu();
         }
@@ -214,8 +234,13 @@ namespace UdderDestruction
             runTimer += Time.deltaTime;
 
             CleanupEnemyList();
+            CleanupAlliedCows();
             CleanupSeaUrchins();
             RepositionStrandedEnemies();
+
+            if (testSpawnScene)
+                return;
+
             UpdateDolphin();
             UpdateWaveSpawning();
 
@@ -247,6 +272,7 @@ namespace UdderDestruction
             renderer.color = mode switch
             {
                 MilkMode.SpoiledMilk => new Color(0.55f, 1f, 0.45f),
+                MilkMode.TresLeches => new Color(1f, 0.96f, 0.72f),
                 _ => Color.white,
             };
             renderer.sortingOrder = 5;
@@ -265,22 +291,28 @@ namespace UdderDestruction
             projectile.mode = mode;
             projectile.powerLevel = Mathf.Max(1, powerLevel);
             projectile.condensedMilkLevel = condensedMilkLevel;
+            projectile.sleepDuration = mode == MilkMode.WholeMilk && player ? player.GetPastureBedtimeSleepDuration() : 0f;
+            projectile.condensedMilkDamageMultiplier = mode == MilkMode.TresLeches ? 2f * (1f + Mathf.Max(0, powerLevel - 1) * 0.1f) : 1f;
+            projectile.condensedMilkDurationMultiplier = mode == MilkMode.TresLeches ? 2f * (1f + Mathf.Max(0, powerLevel - 1) * 0.1f) : 1f;
             projectile.damage = mode switch
             {
                 MilkMode.Buttermilk => damage * 1.15f,
                 MilkMode.RawMilk => damage * 0.45f,
+                MilkMode.TresLeches => damage,
                 _ => damage,
             };
             projectile.speed = mode switch
             {
                 MilkMode.SpoiledMilk => 6.2f,
                 MilkMode.RawMilk => 5.8f,
+                MilkMode.TresLeches => 7.4f,
                 _ => 7.4f,
             };
             projectile.life = mode switch
             {
                 MilkMode.SpoiledMilk => 0.425f,
                 MilkMode.RawMilk => 0.6f,
+                MilkMode.TresLeches => 0.55f,
                 _ => 0.55f,
             };
             projectile.Fire(direction);
@@ -292,6 +324,7 @@ namespace UdderDestruction
             {
                 MilkMode.WholeMilk => wholeMilkProjectilePrefab,
                 MilkMode.Buttermilk => buttermilkProjectilePrefab,
+                MilkMode.TresLeches => wholeMilkProjectilePrefab,
                 MilkMode.SpoiledMilk => spoiledMilkProjectilePrefab,
                 MilkMode.RawMilk => rawMilkProjectilePrefab,
                 _ => wholeMilkProjectilePrefab,
@@ -304,6 +337,7 @@ namespace UdderDestruction
             {
                 MilkMode.WholeMilk => wholeMilkSprite ? wholeMilkSprite : bottleSprite,
                 MilkMode.Buttermilk => buttermilkSprite ? buttermilkSprite : bottleSprite,
+                MilkMode.TresLeches => tresLechesSprite ? tresLechesSprite : wholeMilkSprite ? wholeMilkSprite : bottleSprite,
                 MilkMode.RawMilk => rawMilkSprite ? rawMilkSprite : bottleSprite,
                 _ => bottleSprite,
             };
@@ -369,6 +403,39 @@ namespace UdderDestruction
             BuildDairyAirSprites(cloud.transform);
             var dairyAir = EnsureComponent<UdderDairyAirCloud>(cloud);
             dairyAir.life = GetDairyAirCloudLife(powerLevel, interval);
+            dairyAir.permanent = false;
+            dairyAir.followTarget = null;
+            dairyAir.radiusMultiplier = 1f;
+        }
+
+        public void UpdateCarbonHoofprintAura(Transform target, int powerLevel)
+        {
+            if (!target)
+                return;
+
+            if (!carbonHoofprintAura)
+            {
+                bool fromPrefab = dairyAirCloudPrefab;
+                GameObject cloud = InstantiateOrCreate(dairyAirCloudPrefab, "Carbon Hoofprint Aura");
+                var renderer = EnsureComponent<SpriteRenderer>(cloud);
+                renderer.sprite = GetRuntimeSolidSprite();
+                renderer.color = new Color(1f, 1f, 1f, 0f);
+                renderer.sortingOrder = 3;
+
+                var collider = EnsureComponent<CircleCollider2D>(cloud);
+                collider.isTrigger = true;
+                if (!fromPrefab)
+                    collider.radius = 0.55f;
+
+                BuildDairyAirSprites(cloud.transform);
+                carbonHoofprintAura = EnsureComponent<UdderDairyAirCloud>(cloud);
+            }
+
+            carbonHoofprintAura.transform.position = target.position;
+            carbonHoofprintAura.permanent = true;
+            carbonHoofprintAura.followTarget = target;
+            carbonHoofprintAura.life = float.PositiveInfinity;
+            carbonHoofprintAura.radiusMultiplier = 1f + Mathf.Max(0, powerLevel - 1) * 0.05f;
         }
 
         private void BuildDairyAirSprites(Transform parent)
@@ -1048,7 +1115,7 @@ namespace UdderDestruction
                 defeatedBoss && enemy.bossType == UdderBossType.MiyamotoMoosashi);
             enemiesLeftInWave = Mathf.Max(0, enemiesLeftInWave - 1);
             cream += enemy.creamValue;
-            AddBovinity(wave);
+            AddBovinity(enemy.rewardWave > 0 ? enemy.rewardWave : wave);
             if (defeatedBoss)
                 ShowAuLaitText(enemy.transform.position + Vector3.up * 0.95f);
 
@@ -1375,7 +1442,7 @@ namespace UdderDestruction
             List<UdderPower> choices = new();
             foreach (UdderPower power in System.Enum.GetValues(typeof(UdderPower)))
             {
-                if (player.GetPowerLevel(power) < 10)
+                if (CanOfferPowerChoice(power))
                     choices.Add(power);
             }
 
@@ -1391,12 +1458,20 @@ namespace UdderDestruction
             return choices;
         }
 
+        private bool CanOfferPowerChoice(UdderPower power)
+        {
+            if (!player || player.IsPowerDisabled(power) || player.GetRawPowerLevel(power) >= UdderPlayer.MaxPowerLevelValue)
+                return false;
+
+            return !UdderPlayer.IsCombinationPower(power) || player.AreCombinationPrerequisitesMet(power);
+        }
+
         private void ChoosePower(UdderPower power)
         {
-            int level = player.GetPowerLevel(power);
+            int level = player.GetRawPowerLevel(power);
             int gain = 1;
 
-            if (bankedDairyDoubles > 0 && level + 2 <= 10)
+            if (bankedDairyDoubles > 0 && level + 2 <= UdderPlayer.MaxPowerLevelValue)
             {
                 bankedDairyDoubles--;
                 gain = 2;
@@ -1406,7 +1481,7 @@ namespace UdderDestruction
             int roll = Random.Range(1, 101);
             if (roll == 100)
             {
-                if (gain == 1 && level + 2 <= 10)
+                if (gain == 1 && level + 2 <= UdderPlayer.MaxPowerLevelValue)
                 {
                     gain = 2;
                     DisplayBottomScreenText("DAIRY DOUBLE!");
@@ -1449,6 +1524,7 @@ namespace UdderDestruction
             TextAnimation animation = mode switch
             {
                 MilkMode.Buttermilk => acidText,
+                MilkMode.TresLeches => acidText,
                 MilkMode.SpoiledMilk => poisonText,
                 MilkMode.RawMilk => poisonText,
                 MilkMode.Prion => poisonText,
@@ -1688,7 +1764,12 @@ namespace UdderDestruction
 
         private void SpawnEnemy()
         {
-            bool isChicken = Random.value >= GetPigWaveRatio();
+            SpawnEnemy(wave);
+        }
+
+        private void SpawnEnemy(int sourceWave)
+        {
+            bool isChicken = Random.value >= GetPigWaveRatio(sourceWave);
             GameObject enemyPrefab = isChicken ? chickenEnemyPrefab : pigEnemyPrefab;
             bool fromPrefab = enemyPrefab;
             GameObject enemyObject = InstantiateOrCreate(enemyPrefab, isChicken ? "Debt Chicken" : "Hostile Ham");
@@ -1697,6 +1778,115 @@ namespace UdderDestruction
             renderer.sprite = isChicken ? chickenSprite : pigSprite;
             renderer.sortingOrder = 4;
             renderer.color = Color.Lerp(Color.white, new Color(1f, 0.55f, 0.55f), wave * 0.04f);
+            ScaleSpriteToHeight(enemyObject.transform, renderer.sprite, isChicken ? 0.39f : 0.78f);
+
+            var body = EnsureComponent<Rigidbody2D>(enemyObject);
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
+            var collider = EnsureComponent<CircleCollider2D>(enemyObject);
+            if (!fromPrefab)
+            {
+                collider.radius = isChicken ? 0.12f : 0.13f;
+                collider.offset = isChicken ? Vector2.zero : new Vector2(0f, -0.02f);
+            }
+
+            var enemy = EnsureComponent<UdderEnemy>(enemyObject);
+            enemy.enemyKind = isChicken ? UdderEnemyKind.DebtChicken : UdderEnemyKind.HostileHam;
+            enemy.rewardWave = sourceWave;
+            enemy.downSprite = isChicken ? chickenDownSprite : pigDownSprite;
+            enemy.sideSprite = isChicken ? chickenSideSprite : pigSideSprite;
+            enemy.upSprite = isChicken ? chickenUpSprite : pigUpSprite;
+            enemy.rawMilkFlySprite = rawMilkFlySprite;
+            enemy.cottonDeathSprite = cottonDeathSprite;
+            enemy.skullDeathSprite = skullDeathSprite;
+            enemy.prionAngrySprite = prionAngrySprite;
+            enemy.prionIndicatorPrefab = prionIndicatorPrefab;
+            enemy.avoidsWater = true;
+            enemy.maxHealth = isChicken ? 8f : Random.value < 0.25f ? 22f : 14f;
+            enemy.speed = isChicken ? Random.Range(1.05f, 1.35f) : Random.Range(1.45f, 1.85f);
+            enemy.creamValue = isChicken ? Random.Range(1, 3) : Random.Range(2, 5);
+            enemy.Init(this, player, 1f + sourceWave * 0.13f, GetEnemySpeedScale(sourceWave));
+            enemies.Add(enemy);
+        }
+
+        public void SpawnTestUnit(UdderTestSpawnUnit unit)
+        {
+            if (!player)
+                return;
+
+            switch (unit)
+            {
+                case UdderTestSpawnUnit.DebtChicken:
+                    SpawnTestEnemy(true, GetTestSpawnPosition(), "Test Debt Chicken");
+                    break;
+                case UdderTestSpawnUnit.HostileHam:
+                    SpawnTestEnemy(false, GetTestSpawnPosition(), "Test Hostile Ham");
+                    break;
+                case UdderTestSpawnUnit.EnemyCow:
+                    SpawnBossEscort(GetTestSpawnPosition(), false, 0, 1);
+                    break;
+                case UdderTestSpawnUnit.BeeDrone:
+                    SpawnTestBeeDrone(GetTestSpawnPosition());
+                    break;
+                case UdderTestSpawnUnit.PondDolphin:
+                    SpawnDolphinSurface(GetTestSpawnPosition());
+                    break;
+                case UdderTestSpawnUnit.HostileSeaUrchin:
+                    LaunchSeaUrchin(GetTestSpawnPosition(), player.transform.position);
+                    break;
+                case UdderTestSpawnUnit.MiyamotoMoosashi:
+                    SpawnTestBoss(UdderBossType.MiyamotoMoosashi);
+                    break;
+                case UdderTestSpawnUnit.Lidia:
+                    SpawnTestBoss(UdderBossType.Lidia);
+                    break;
+                case UdderTestSpawnUnit.BobMoorley:
+                    SpawnTestBoss(UdderBossType.BobMoorley);
+                    break;
+                case UdderTestSpawnUnit.HughHoofner:
+                    SpawnTestBoss(UdderBossType.HughHoofner);
+                    break;
+                case UdderTestSpawnUnit.HolyCow:
+                    SpawnTestBoss(UdderBossType.HolyCow);
+                    break;
+                case UdderTestSpawnUnit.Ruminator:
+                    SpawnTestBoss(UdderBossType.Ruminator);
+                    break;
+                case UdderTestSpawnUnit.Beeatrice:
+                    SpawnTestBoss(UdderBossType.Beeatrice);
+                    break;
+            }
+        }
+
+        private Vector3 GetTestSpawnPosition()
+        {
+            Vector3 center = player ? player.transform.position : Vector3.zero;
+            Vector3 candidate = center + Vector3.right * 3.4f + Vector3.up * Random.Range(-1.4f, 1.4f);
+            return ClampToVisibleField(candidate, 0.9f);
+        }
+
+        private void SpawnTestBoss(UdderBossType bossType)
+        {
+            bossPending = false;
+            bossActive = false;
+            enemiesPendingSpawn = 0;
+            enemiesLeftInWave = 0;
+            SpawnBoss(bossType);
+        }
+
+        private void SpawnTestEnemy(bool isChicken, Vector3 position, string name)
+        {
+            GameObject enemyPrefab = isChicken ? chickenEnemyPrefab : pigEnemyPrefab;
+            bool fromPrefab = enemyPrefab;
+            GameObject enemyObject = InstantiateOrCreate(enemyPrefab, name);
+            enemyObject.transform.position = position;
+            var renderer = EnsureComponent<SpriteRenderer>(enemyObject);
+            renderer.sprite = isChicken ? chickenSprite : pigSprite;
+            renderer.sortingOrder = 4;
+            renderer.color = Color.white;
             ScaleSpriteToHeight(enemyObject.transform, renderer.sprite, isChicken ? 0.39f : 0.78f);
 
             var body = EnsureComponent<Rigidbody2D>(enemyObject);
@@ -1723,11 +1913,62 @@ namespace UdderDestruction
             enemy.prionAngrySprite = prionAngrySprite;
             enemy.prionIndicatorPrefab = prionIndicatorPrefab;
             enemy.avoidsWater = true;
-            enemy.maxHealth = isChicken ? 8f : Random.value < 0.25f ? 22f : 14f;
-            enemy.speed = isChicken ? Random.Range(1.05f, 1.35f) : Random.Range(1.45f, 1.85f);
-            enemy.creamValue = isChicken ? Random.Range(1, 3) : Random.Range(2, 5);
-            enemy.Init(this, player, 1f + wave * 0.13f, GetEnemySpeedScale());
+            enemy.maxHealth = isChicken ? 8f : 18f;
+            enemy.speed = isChicken ? 1.2f : 1.65f;
+            enemy.creamValue = isChicken ? 1 : 3;
+            enemy.Init(this, player, 1f, 1f);
             enemies.Add(enemy);
+            enemiesLeftInWave++;
+        }
+
+        private void SpawnTestBeeDrone(Vector3 position)
+        {
+            bool fromPrefab = beeDronePrefab;
+            GameObject droneObject = InstantiateOrCreate(beeDronePrefab, "Test BEEatrice Drone");
+            droneObject.transform.position = position;
+
+            var renderer = EnsureComponent<SpriteRenderer>(droneObject);
+            if (!fromPrefab)
+            {
+                renderer.sprite = beeDroneSprite ? beeDroneSprite : beeatriceSprite;
+                renderer.color = Color.white;
+                renderer.sortingOrder = 5;
+                ScaleSpriteToHeight(droneObject.transform, renderer.sprite, 0.39f);
+            }
+
+            var body = EnsureComponent<Rigidbody2D>(droneObject);
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
+            var collider = EnsureComponent<CircleCollider2D>(droneObject);
+            if (!fromPrefab)
+            {
+                collider.radius = 0.12f;
+                collider.offset = Vector2.zero;
+            }
+
+            var enemy = EnsureComponent<UdderEnemy>(droneObject);
+            enemy.enemyKind = UdderEnemyKind.Bee;
+            enemy.downSprite = beeDroneSprite;
+            enemy.sideSprite = beeDroneSprite;
+            enemy.upSprite = beeDroneSprite;
+            enemy.rawMilkFlySprite = rawMilkFlySprite;
+            enemy.cottonDeathSprite = cottonDeathSprite;
+            enemy.skullDeathSprite = skullDeathSprite;
+            enemy.prionAngrySprite = prionAngrySprite;
+            enemy.prionIndicatorPrefab = prionIndicatorPrefab;
+            enemy.avoidsWater = true;
+            enemy.isFlying = true;
+            enemy.IsBoss = false;
+            enemy.maxHealth = 12f;
+            enemy.speed = 1.55f;
+            enemy.contactDamage = 7f;
+            enemy.creamValue = 1;
+            enemy.Init(this, player, 1f, 1f);
+            enemies.Add(enemy);
+            enemiesLeftInWave++;
         }
 
         private Vector3 GetEnemySpawnPositionNearPlayer()
@@ -1832,12 +2073,52 @@ namespace UdderDestruction
         private void StartWave()
         {
             contaminatedWaterCenters.Clear();
-            int count = Mathf.CeilToInt((4 + wave * 2) * GetWaveEnemyCountMultiplier());
+            RefreshStampedeAllies();
+            playerTookDamageThisWave = false;
+            spawningMilkshakeRush = false;
+            int count = GetWaveEnemyCount(wave);
             enemiesLeftInWave = count;
             enemiesPendingSpawn = count;
             waveSpawnTimer = 0f;
             nextWaveTimer = 0f;
             DisplayText("WAVE " + wave, levelText, player.transform.position + Vector3.up * 1.2f);
+        }
+
+        private void RefreshStampedeAllies()
+        {
+            CleanupAlliedCows();
+            int targetCount = player ? player.GetPowerLevel(UdderPower.Stampede) : 0;
+            for (int i = alliedCows.Count; i < targetCount; i++)
+                SpawnStampedeAlly(i);
+        }
+
+        private void SpawnStampedeAlly(int index)
+        {
+            if (!player)
+                return;
+
+            GameObject cowObject = new("Stampede Cow");
+            float angle = index * 137.5f * Mathf.Deg2Rad;
+            cowObject.transform.position = player.transform.position + new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * 1.4f;
+
+            var renderer = EnsureComponent<SpriteRenderer>(cowObject);
+            renderer.sprite = cowSprite ? cowSprite : GetRuntimeSolidSprite();
+            renderer.color = new Color(0.92f, 1f, 0.9f);
+            renderer.sortingOrder = 4;
+            ScaleSpriteToHeight(cowObject.transform, renderer.sprite, 0.95f);
+
+            var body = EnsureComponent<Rigidbody2D>(cowObject);
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+            body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
+            var collider = EnsureComponent<CircleCollider2D>(cowObject);
+            collider.radius = 0.2f;
+
+            var ally = EnsureComponent<UdderAlliedCow>(cowObject);
+            ally.Init(this, player, cowDownSprite, cowSideSprite ? cowSideSprite : cowSprite, cowUpSprite);
+            alliedCows.Add(ally);
         }
 
         private void UpdateWaveSpawning()
@@ -1865,6 +2146,9 @@ namespace UdderDestruction
             if (!IsWaveCleared())
                 return;
 
+            if (TryStartMilkshakeRush())
+                return;
+
             if (IsBossWave(wave) && bossWaveCompleted != wave)
             {
                 pendingBossType = ChooseBossForWave(wave);
@@ -1882,14 +2166,106 @@ namespace UdderDestruction
             DisplayTopScreenText("WAVE CLEARED!");
         }
 
+        private bool TryStartMilkshakeRush()
+        {
+            if (spawningMilkshakeRush || bossPending || bossActive || !player || !player.IsAtFullHealth || playerTookDamageThisWave || IsBossWave(wave))
+                return false;
+
+            int nextBossWave = GetNextBossWave(wave);
+            int firstRushWave = wave + 1;
+            int lastRushWave = nextBossWave - 1;
+            if (firstRushWave > lastRushWave)
+                return false;
+
+            spawningMilkshakeRush = true;
+            SpawnMilkshake(player.transform.position, player.Health);
+
+            int totalCount = 0;
+            for (int rushWave = firstRushWave; rushWave <= lastRushWave; rushWave++)
+                totalCount += GetWaveEnemyCount(rushWave);
+
+            enemiesLeftInWave = totalCount;
+            enemiesPendingSpawn = 0;
+            for (int rushWave = firstRushWave; rushWave <= lastRushWave; rushWave++)
+            {
+                int count = GetWaveEnemyCount(rushWave);
+                for (int i = 0; i < count; i++)
+                    SpawnEnemy(rushWave);
+            }
+
+            wave = nextBossWave;
+            playerTookDamageThisWave = false;
+            DisplayTopScreenText("MILKSHAKE RUSH!");
+            return true;
+        }
+
+        private void SpawnMilkshake(Vector3 position, float health)
+        {
+            if (activeMilkshake)
+                Destroy(activeMilkshake.gameObject);
+
+            GameObject milkshakeObject = InstantiateOrCreate(milkshakePrefab, "Milkshake Lure");
+            milkshakeObject.transform.position = position;
+
+            var renderer = EnsureComponent<SpriteRenderer>(milkshakeObject);
+            renderer.sprite = milkshakeSprite ? milkshakeSprite : GetRuntimeSolidSprite();
+            renderer.color = milkshakeSprite ? Color.white : new Color(1f, 0.84f, 0.98f);
+            renderer.sortingOrder = 4;
+            milkshakeObject.transform.localScale = Vector3.one * 3.6f;
+
+            var collider = EnsureComponent<CircleCollider2D>(milkshakeObject);
+            collider.isTrigger = true;
+            collider.radius = 0.44f;
+
+            var body = EnsureComponent<Rigidbody2D>(milkshakeObject);
+            body.gravityScale = 0f;
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.freezeRotation = true;
+
+            activeMilkshake = EnsureComponent<UdderMilkshake>(milkshakeObject);
+            activeMilkshake.Init(this, health);
+            ShowCowText(position, "MILKSHAKE!");
+        }
+
+        public void ClearMilkshake(UdderMilkshake milkshake)
+        {
+            if (activeMilkshake == milkshake)
+                activeMilkshake = null;
+        }
+
+        public Transform GetActiveMilkshakeTarget()
+        {
+            return activeMilkshake && activeMilkshake.IsAlive ? activeMilkshake.transform : null;
+        }
+
+        public void RecordPlayerTookDamageThisWave()
+        {
+            playerTookDamageThisWave = true;
+        }
+
+        private static int GetNextBossWave(int waveNumber)
+        {
+            return Mathf.CeilToInt((waveNumber + 1) / 10f) * 10;
+        }
+
+        private int GetWaveEnemyCount(int waveNumber)
+        {
+            return Mathf.CeilToInt((4 + waveNumber * 2) * GetWaveEnemyCountMultiplier());
+        }
+
         private float GetPigWaveRatio()
         {
-            if (wave < 5)
+            return GetPigWaveRatio(wave);
+        }
+
+        private static float GetPigWaveRatio(int waveNumber)
+        {
+            if (waveNumber < 5)
                 return 0f;
-            if (wave <= 10)
+            if (waveNumber <= 10)
                 return 0.1f;
 
-            int decadeSteps = Mathf.Clamp((wave - 1) / 10, 1, 4);
+            int decadeSteps = Mathf.Clamp((waveNumber - 1) / 10, 1, 4);
             return 0.1f + decadeSteps * 0.1f;
         }
 
@@ -1900,7 +2276,12 @@ namespace UdderDestruction
 
         private float GetEnemySpeedScale()
         {
-            return Mathf.Lerp(0.78f, 1.28f, Mathf.Clamp01((wave - 1) / 24f));
+            return GetEnemySpeedScale(wave);
+        }
+
+        private static float GetEnemySpeedScale(int waveNumber)
+        {
+            return Mathf.Lerp(0.78f, 1.28f, Mathf.Clamp01((waveNumber - 1) / 24f));
         }
 
         private float GetWaveEnemyCountMultiplier()
@@ -2295,6 +2676,37 @@ namespace UdderDestruction
 
             if (!bossActive && enemiesPendingSpawn <= 0 && enemies.Count == 0)
                 enemiesLeftInWave = 0;
+        }
+
+        private void CleanupAlliedCows()
+        {
+            for (int i = alliedCows.Count - 1; i >= 0; i--)
+            {
+                if (!alliedCows[i] || !alliedCows[i].IsAlive)
+                    alliedCows.RemoveAt(i);
+            }
+        }
+
+        public UdderEnemy FindNearestEnemy(Vector3 position, float range)
+        {
+            CleanupEnemyList();
+            UdderEnemy nearest = null;
+            float nearestDistance = range * range;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                UdderEnemy enemy = enemies[i];
+                if (!enemy || !enemy.IsAlive || enemy.IsInvulnerable)
+                    continue;
+
+                float distance = (enemy.transform.position - position).sqrMagnitude;
+                if (distance <= nearestDistance)
+                {
+                    nearest = enemy;
+                    nearestDistance = distance;
+                }
+            }
+
+            return nearest;
         }
 
         private void RepositionStrandedEnemies()
