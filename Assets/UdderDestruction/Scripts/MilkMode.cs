@@ -32,6 +32,7 @@ namespace UdderDestruction
         AuraFarming,
         PrionInfection,
         BovineIntervention,
+        BullsEye,
         CarbonHoofprint,
         PastureBedtime,
         Stampede,

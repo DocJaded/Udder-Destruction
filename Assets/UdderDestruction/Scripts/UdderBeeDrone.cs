@@ -10,6 +10,7 @@ namespace UdderDestruction
         private int orbitIndex;
         private int orbitCount;
         private float orbitOffset;
+        private float attackDamageTimer;
         private bool attacking;
 
         public bool IsAlive => enemy && enemy.IsAlive;
@@ -52,6 +53,13 @@ namespace UdderDestruction
             Vector3 delta = target - transform.position;
             if (delta.sqrMagnitude > 0.01f)
                 transform.position += delta.normalized * (moveSpeed * Time.deltaTime);
+
+            attackDamageTimer -= Time.deltaTime;
+            if (attacking && attackDamageTimer <= 0f && ((Vector2)(player.transform.position - transform.position)).sqrMagnitude <= 0.45f * 0.45f)
+            {
+                attackDamageTimer = 0.2f;
+                player.TakeDamage(enemy.contactDamage * 0.2f);
+            }
         }
     }
 }

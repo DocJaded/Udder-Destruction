@@ -46,6 +46,8 @@ namespace UdderDestruction
         private float prionAttackTimer;
         private float meleeTimer;
         private float slideTimer;
+        private float butterSlowTimer;
+        private float butterSlowMultiplier = 1f;
         private float slipTextCooldown;
         private float waterRouteTimer;
         private float chargeWindupTimer;
@@ -75,6 +77,7 @@ namespace UdderDestruction
         public bool IsRawMilkContagious => rawMilkTimer > 0f && !IsBoss;
         public bool IsPrionInfected => prionTimer > 0f;
         public bool IsSleeping => sleepTimer > 0f;
+        public bool IsBee => enemyKind == UdderEnemyKind.Bee || bossType == UdderBossType.Beeatrice;
         public bool IsBoss { get; set; }
         public bool IsInvulnerable { get; set; }
         public bool UsesCustomMovement { get; set; }
@@ -106,6 +109,7 @@ namespace UdderDestruction
 
             meleeTimer -= Time.deltaTime;
             rawMilkSpreadCooldown -= Time.deltaTime;
+            butterSlowTimer -= Time.deltaTime;
             UpdatePrionPulse();
             UpdatePrionIndicator();
             UpdateBossHealthBar();
@@ -131,7 +135,7 @@ namespace UdderDestruction
             if (!IsSleeping && delta.sqrMagnitude > 0.01f)
             {
                 Vector2 direction;
-                float currentSpeed = rawMilkHoldTimer > 0f ? 0f : speed;
+                float currentSpeed = rawMilkHoldTimer > 0f ? 0f : speed * GetCurrentButterSlowMultiplier();
                 if (chargeTimer > 0f)
                 {
                     chargeTimer -= Time.deltaTime;
@@ -406,6 +410,21 @@ namespace UdderDestruction
             return true;
         }
 
+        public bool ApplyButterSlick(float duration, float multiplier)
+        {
+            if (IsBee)
+                return false;
+
+            if (IsBoss)
+            {
+                butterSlowTimer = Mathf.Max(butterSlowTimer, duration);
+                butterSlowMultiplier = Mathf.Min(butterSlowMultiplier, 0.45f);
+                return false;
+            }
+
+            return StartButterSlide(duration, multiplier);
+        }
+
         public void RegisterButterSlickSlide()
         {
             if (enemyKind == UdderEnemyKind.DebtChicken)
@@ -471,7 +490,7 @@ namespace UdderDestruction
 
         public void ApplyPrionPulse(float damagePerSecond, float spreadChance)
         {
-            if (health <= 0f || IsBoss)
+            if (health <= 0f || IsBoss || IsBee)
                 return;
 
             bool wasInfected = prionTimer > 0f;
@@ -489,7 +508,7 @@ namespace UdderDestruction
 
         public bool TakePrionDamage(float amount)
         {
-            if (health <= 0f || IsInvulnerable)
+            if (health <= 0f || IsInvulnerable || IsBee)
                 return false;
 
             health -= amount;
@@ -564,10 +583,14 @@ namespace UdderDestruction
             finalAmount = crit ? finalAmount * 2.2f : finalAmount;
             health -= finalAmount;
 
-            if (mode == MilkMode.Buttermilk || mode == MilkMode.TresLeches)
+            if ((mode == MilkMode.Buttermilk || mode == MilkMode.TresLeches) && !IsBee)
             {
                 acidTimer = 1.2f;
                 StartButterSlide(GetButtermilkSlideDuration(effectLevel), 3.4f);
+            }
+            else if (mode == MilkMode.Buttermilk || mode == MilkMode.TresLeches)
+            {
+                acidTimer = 1.2f;
             }
             if (mode == MilkMode.SpoiledMilk)
                 poisonTimer = 2.5f;
@@ -582,6 +605,17 @@ namespace UdderDestruction
         private static float GetButtermilkSlideDuration(int effectLevel)
         {
             return 1f * (1f + Mathf.Max(0, effectLevel - 1) * 0.2f);
+        }
+
+        private float GetCurrentButterSlowMultiplier()
+        {
+            if (butterSlowTimer <= 0f)
+            {
+                butterSlowMultiplier = 1f;
+                return 1f;
+            }
+
+            return Mathf.Clamp(butterSlowMultiplier, 0.1f, 1f);
         }
 
         private void Die()

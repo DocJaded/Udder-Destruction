@@ -51,6 +51,7 @@ namespace UdderDestruction
         private Vector2 aim = Vector2.right;
         private Vector2 visualFacing = Vector2.right;
         private float invulnerableTimer;
+        private int overlevelDamageBonusLevels;
 
         public bool IsAlive => health > 0f;
         public float Health01 => health / maxHealth;
@@ -60,9 +61,11 @@ namespace UdderDestruction
         public int BovinityLevel { get; private set; } = 1;
         public float Bovinity01 => maxBovinity <= 0f ? 0f : Mathf.Clamp01(bovinity / maxBovinity);
         public bool CanLevelBovinity => bovinity >= maxBovinity;
-        public float StompDamage => GetPowerLevel(UdderPower.Stomp) > 0 ? stompDamage : 0f;
+        public float StompDamage => GetPowerLevel(UdderPower.Stomp) > 0 ? stompDamage * AttackDamageMultiplier : 0f;
         public float CheeseItChance => 0.01f + GetPowerLevel(UdderPower.Legendary) * 0.01f;
         public float BovinityAcquisitionBonus => GetPowerLevel(UdderPower.BovineIntervention) * 2.5f;
+        public float ProjectileRangeMultiplier => 1f + GetPowerLevel(UdderPower.BullsEye) * 0.15f;
+        public float AttackDamageMultiplier => 1f + overlevelDamageBonusLevels * 0.01f;
         public static int MaxPowerLevelValue => MaxPowerLevel;
 
         public void Init(UdderGameController owner)
@@ -84,6 +87,7 @@ namespace UdderDestruction
                 disabledPowers[i] = false;
             }
             powerLevels[(int)UdderPower.Stomp] = 1;
+            overlevelDamageBonusLevels = 0;
             wholeMilkTimer = 0.2f;
             buttermilkTimer = 1.1f;
             spoiledMilkTimer = 1.8f;
@@ -227,12 +231,12 @@ namespace UdderDestruction
             if (level <= 0 || timer > 0f)
                 return;
 
-            if (!game || !game.TryGetAutoAimDirectionInRange(transform.position, aim, game.GetMilkShotRange(mode), mode == MilkMode.SpoiledMilk, out Vector2 fireDirection))
+            if (!game || !game.TryGetAutoAimDirectionInRange(transform.position, aim, game.GetMilkShotRange(mode) * ProjectileRangeMultiplier, mode == MilkMode.SpoiledMilk, out Vector2 fireDirection))
                 return;
 
             timer = interval;
             SpendMilk(cost);
-            game.FireMilk(transform.position, fireDirection, mode, projectileDamage * damageMultiplier * (1f + (level - 1) * 0.12f), level, GetPowerLevel(UdderPower.CondensedMilk));
+            game.FireMilk(transform.position, fireDirection, mode, projectileDamage * damageMultiplier * (1f + (level - 1) * 0.12f) * AttackDamageMultiplier, level, GetPowerLevel(UdderPower.CondensedMilk));
         }
 
         private void SpendMilk(float cost)
@@ -246,7 +250,7 @@ namespace UdderDestruction
             if (level <= 0 || wholeMilkTimer > 0f)
                 return;
 
-            if (!game || !game.TryGetAutoAimDirectionInRange(transform.position, aim, game.GetMilkShotRange(MilkMode.TresLeches), false, out Vector2 fireDirection))
+            if (!game || !game.TryGetAutoAimDirectionInRange(transform.position, aim, game.GetMilkShotRange(MilkMode.TresLeches) * ProjectileRangeMultiplier, false, out Vector2 fireDirection))
                 return;
 
             wholeMilkTimer = fireInterval / (1f + (level - 1) * 0.1f);
@@ -259,7 +263,7 @@ namespace UdderDestruction
             const float levelTenMultiplier = 1f + (MaxPowerLevel - 1) * 0.12f;
             float wholeMilkDamage = projectileDamage * 0.5f * levelTenMultiplier;
             float buttermilkDamage = projectileDamage * 1.1f * levelTenMultiplier * 1.15f;
-            return (wholeMilkDamage + buttermilkDamage) * (1f + (level - 1) * 0.1f);
+            return (wholeMilkDamage + buttermilkDamage) * (1f + (level - 1) * 0.1f) * AttackDamageMultiplier;
         }
 
         private void UpdateCarbonHoofprint()
@@ -405,6 +409,12 @@ namespace UdderDestruction
             return applied;
         }
 
+        public int AddOverlevelDamageBonus(int gain)
+        {
+            overlevelDamageBonusLevels += Mathf.Max(0, gain);
+            return overlevelDamageBonusLevels;
+        }
+
         private void DisableCombinationPrerequisites(UdderPower power)
         {
             UdderPower[] prerequisites = GetCombinationPrerequisites(power);
@@ -428,6 +438,7 @@ namespace UdderDestruction
                 UdderPower.AuraFarming => "Aura Farming",
                 UdderPower.PrionInfection => "Prion Infection",
                 UdderPower.BovineIntervention => "Bovine Intervention",
+                UdderPower.BullsEye => "Bull's Eye",
                 UdderPower.CarbonHoofprint => "Carbon Hoofprint",
                 UdderPower.PastureBedtime => "Pasture Bedtime",
                 UdderPower.Stampede => "Stampede",
@@ -457,6 +468,7 @@ namespace UdderDestruction
                 UdderPower.AuraFarming => "Attracts nearby drops. Each level adds one cow-collider radius to its attraction range.",
                 UdderPower.PrionInfection => "Infects enemies with prions, causing damage over time and making them attack other enemies. On death, infection has a level-scaled chance to spread within its AoE.",
                 UdderPower.BovineIntervention => "Adds +2.5 bovinity acquisition from all sources of bovinity per level.",
+                UdderPower.BullsEye => "Increases projectile attack range by 15% per level.",
                 UdderPower.CarbonHoofprint => "Combination Power: Dairy Air becomes a permanent cloud aura that follows the player. Leveling increases cloud radius.",
                 UdderPower.PastureBedtime => "Combination Power: Whole Milk projectiles put enemies to sleep. Sea urchins are immune.",
                 UdderPower.Stampede => "Combination Power: Summons cow allies to fight alongside the player. Allies refresh each wave.",

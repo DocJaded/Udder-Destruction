@@ -47,7 +47,7 @@ namespace UdderDestruction
                     continue;
                 }
 
-                if (enemies[i].StartButterSlide(slideDuration, slideMultiplier) && countedChickenSlips.Add(enemies[i]))
+                if (enemies[i].ApplyButterSlick(slideDuration, slideMultiplier) && countedChickenSlips.Add(enemies[i]))
                     enemies[i].RegisterButterSlickSlide();
             }
         }

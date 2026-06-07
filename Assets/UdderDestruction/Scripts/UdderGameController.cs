@@ -196,6 +196,7 @@ namespace UdderDestruction
 
             if (testSpawnScene)
             {
+                Time.timeScale = 1f;
                 if (mainMenuOverlay)
                     mainMenuOverlay.SetActive(false);
                 mainMenuActive = false;
@@ -315,6 +316,8 @@ namespace UdderDestruction
                 MilkMode.TresLeches => 0.55f,
                 _ => 0.55f,
             };
+            if (player)
+                projectile.life *= player.ProjectileRangeMultiplier;
             projectile.Fire(direction);
         }
 
@@ -898,7 +901,8 @@ namespace UdderDestruction
         public bool TryStartPrionPulse(Vector3 origin, int level)
         {
             UdderEnemy target = null;
-            float rangeSqr = 6.5f * 6.5f;
+            float range = 6.5f * (player ? player.ProjectileRangeMultiplier : 1f);
+            float rangeSqr = range * range;
             float nearestDistance = float.PositiveInfinity;
             for (int i = enemies.Count - 1; i >= 0; i--)
             {
@@ -909,7 +913,7 @@ namespace UdderDestruction
                     continue;
                 }
 
-                if (enemy.IsBoss || enemy.IsPrionInfected)
+                if (enemy.IsBoss || enemy.IsBee || enemy.IsPrionInfected)
                     continue;
 
                 float distance = (enemy.transform.position - origin).sqrMagnitude;
@@ -963,7 +967,8 @@ namespace UdderDestruction
                 projectile.spinDegreesPerSecond = 240f;
                 projectile.homingStrength = 7f;
             }
-            projectile.ConfigurePrionTarget(target, GetPrionDamagePerSecond(level), GetPrionSpreadChance(level));
+            projectile.life *= player ? player.ProjectileRangeMultiplier : 1f;
+            projectile.ConfigurePrionTarget(target, GetPrionDamagePerSecond(level) * (player ? player.AttackDamageMultiplier : 1f), GetPrionSpreadChance(level));
             projectile.Fire(direction);
         }
 
@@ -1009,7 +1014,7 @@ namespace UdderDestruction
                     continue;
                 }
 
-                if (enemy == source || enemy.IsBoss || enemy.IsPrionInfected)
+                if (enemy == source || enemy.IsBoss || enemy.IsBee || enemy.IsPrionInfected)
                     continue;
 
                 float distance = (enemy.transform.position - position).sqrMagnitude;
@@ -1174,6 +1179,8 @@ namespace UdderDestruction
             List<UdderPower> choices = GetRandomPowerChoices();
             if (choices.Count == 0)
             {
+                int bonusLevel = player.AddOverlevelDamageBonus(1);
+                DisplayBottomScreenText("DAMAGE +" + bonusLevel + "%");
                 player.CompleteBovinityLevelUp();
                 choosingPower = false;
                 Time.timeScale = 1f;
@@ -1460,8 +1467,14 @@ namespace UdderDestruction
 
         private bool CanOfferPowerChoice(UdderPower power)
         {
-            if (!player || player.IsPowerDisabled(power) || player.GetRawPowerLevel(power) >= UdderPlayer.MaxPowerLevelValue)
+            if (!player || player.GetRawPowerLevel(power) >= UdderPlayer.MaxPowerLevelValue)
                 return false;
+
+            if (player.IsPowerDisabled(power))
+                return false;
+
+            if (UdderPlayer.IsCombinationPower(power) && player.GetRawPowerLevel(power) > 0)
+                return true;
 
             return !UdderPlayer.IsCombinationPower(power) || player.AreCombinationPrerequisitesMet(power);
         }
@@ -2370,7 +2383,7 @@ namespace UdderDestruction
                 UdderBossType.Beeatrice => 12,
                 _ => 0,
             };
-            int normalReinforcements = repeatEncounter ? wave : 0;
+            int normalReinforcements = repeatEncounter && bossType != UdderBossType.BobMoorley ? wave : 0;
             enemiesPendingSpawn = normalReinforcements;
             waveSpawnTimer = GetWaveSpawnInterval();
             enemiesLeftInWave = (bossType == UdderBossType.HolyCow ? 0 : 1) + inherentExtras + normalReinforcements;

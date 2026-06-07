@@ -52,7 +52,7 @@ namespace UdderDestruction
             if (target && attackTimer <= 0f && ((Vector2)(target.transform.position - transform.position)).sqrMagnitude <= 0.55f * 0.55f)
             {
                 attackTimer = 0.35f;
-                target.TakeDamage(StompDamage, MilkMode.Stomp, false);
+                target.TakeDamage(StompDamage * player.AttackDamageMultiplier, MilkMode.Stomp, false);
             }
         }
 
