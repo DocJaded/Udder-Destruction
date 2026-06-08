@@ -9,8 +9,10 @@ namespace UdderDestruction
         public UdderGameController game;
         public Sprite cottonDeathSprite;
         public Sprite skullDeathSprite;
+        public Sprite skeletonDeathSprite;
 
         private SpriteRenderer spriteRenderer;
+        private SpriteRenderer deathEmoteRenderer;
         private Vector3 beachTarget;
         private float meleeTimer;
         private float dehydrationTick = 0.5f;
@@ -152,11 +154,31 @@ namespace UdderDestruction
 
             yield return new WaitForSeconds(1f);
 
-            if (spriteRenderer && skullDeathSprite)
-                spriteRenderer.sprite = skullDeathSprite;
+            if (spriteRenderer)
+                spriteRenderer.enabled = false;
+            ShowDeathEmote();
 
             yield return new WaitForSeconds(1f);
             Destroy(gameObject);
+        }
+
+        private void ShowDeathEmote()
+        {
+            if (!skeletonDeathSprite)
+                return;
+
+            if (!deathEmoteRenderer)
+            {
+                GameObject emote = new("Death Emote");
+                emote.transform.SetParent(transform, false);
+                emote.transform.localPosition = Vector3.up * 0.28f;
+                emote.transform.localScale = Vector3.one * 0.065f;
+                deathEmoteRenderer = emote.AddComponent<SpriteRenderer>();
+                deathEmoteRenderer.sortingOrder = 12;
+            }
+
+            deathEmoteRenderer.sprite = skeletonDeathSprite;
+            deathEmoteRenderer.gameObject.SetActive(true);
         }
     }
 }

@@ -17,7 +17,11 @@ namespace UdderDestruction
         public Sprite rawMilkFlySprite;
         public Sprite cottonDeathSprite;
         public Sprite skullDeathSprite;
+        public Sprite skeletonDeathSprite;
         public Sprite prionAngrySprite;
+        public Sprite proudEmoteSprite;
+        public Sprite spoiledMilkEmoteSprite;
+        public Sprite rawMilkEmoteSprite;
         public GameObject prionIndicatorPrefab;
         public UdderBossType bossType = UdderBossType.MiyamotoMoosashi;
         public UdderEnemyKind enemyKind = UdderEnemyKind.DebtChicken;
@@ -54,22 +58,26 @@ namespace UdderDestruction
         private float chargeTimer;
         private float chargeCooldown;
         private float queuedChargeDuration;
+        private float separationRefreshTimer;
         private float slideMultiplier = 1f;
         private int waterRouteSign;
         private Vector2 waterRouteCenter;
         private Vector2 lastDirection = Vector2.down;
         private Vector2 slideDirection = Vector2.down;
         private Vector2 chargeDirection;
+        private Vector2 cachedSeparation;
         private Vector3 baseScale;
         private Color baseColor = Color.white;
         private SpriteRenderer spriteRenderer;
         private SpriteRenderer prionIndicatorRenderer;
+        private SpriteRenderer statusEmoteRenderer;
         private Transform bossHealthBarRoot;
         private Transform bossHealthFill;
         private readonly SpriteRenderer[] rawMilkFlyRenderers = new SpriteRenderer[5];
         private readonly Vector2[] rawMilkFlySeeds = new Vector2[5];
         private bool dying;
         private bool ruminatorRespawned;
+        private bool proudEmoteLocked;
         private static Sprite healthBarSprite;
 
         public bool IsAlive => health > 0f;
@@ -118,6 +126,7 @@ namespace UdderDestruction
                 return;
             slipTextCooldown -= Time.deltaTime;
             UpdateCondensedMilk();
+            UpdateStatusEmote();
             if (health <= 0f)
                 return;
             if (sleepTimer > 0f)
@@ -129,9 +138,18 @@ namespace UdderDestruction
             if (milkshakeTarget)
                 targetPosition = milkshakeTarget.position;
             else if (IsPrionInfected)
-                targetPosition = prionTarget ? prionTarget.transform.position : transform.position;
+            {
+                if (prionTarget)
+                    targetPosition = prionTarget.transform.position;
+                else
+                {
+                    targetPosition = player.transform.position;
+                    TryStartPrionPlayerCharge();
+                }
+            }
             Vector2 delta = targetPosition - transform.position;
             Vector2 facingDirection = delta;
+            bool nearCamera = !game || game.IsNearCameraView(transform.position);
             if (!IsSleeping && delta.sqrMagnitude > 0.01f)
             {
                 Vector2 direction;
@@ -162,21 +180,38 @@ namespace UdderDestruction
                 else
                 {
                     direction = delta.normalized;
-                    if (avoidsWater && chargeTimer <= 0f)
+                    if (nearCamera && avoidsWater && chargeTimer <= 0f)
                         direction = GetWaterAwareDirection(direction);
-                    if (UdderHazardPool.TryGetRepulsion(transform.position, direction, out Vector2 puddleRepulsion))
+                    if (nearCamera && UdderHazardPool.TryGetRepulsion(transform.position, direction, out Vector2 puddleRepulsion))
                         direction = puddleRepulsion;
-                    if (game)
-                        direction = (direction + game.GetEnemySeparation(this, transform.position) * 0.45f).normalized;
+                    if (nearCamera && game)
+                    {
+                        separationRefreshTimer -= Time.deltaTime;
+                        if (separationRefreshTimer <= 0f)
+                        {
+                            cachedSeparation = game.GetEnemySeparation(this, transform.position);
+                            separationRefreshTimer = Random.Range(0.08f, 0.16f);
+                        }
+
+                        direction = (direction + cachedSeparation * 0.45f).normalized;
+                    }
+                    else
+                    {
+                        separationRefreshTimer = 0f;
+                        cachedSeparation = Vector2.zero;
+                    }
                     lastDirection = direction;
                 }
 
                 Vector2 desiredMove = direction * currentSpeed * Time.deltaTime;
-                if (avoidsWater && game)
+                desiredMove = ApplyPlayerPushResistance(desiredMove);
+                if (nearCamera && avoidsWater && game)
                     desiredMove = game.GetWaterBlockedMove(transform.position, desiredMove, GetNavigationRadius(), waterRouteSign);
+                else if (!nearCamera && game)
+                    desiredMove = game.GetArenaConstrainedMove(transform.position, desiredMove);
 
                 Vector3 nextPosition = transform.position + (Vector3)desiredMove;
-                if (game && game.IsInWater(nextPosition, GetNavigationRadius()))
+                if (nearCamera && game && game.IsInWater(nextPosition, GetNavigationRadius()))
                 {
                     if (game.TryGetWaterAvoidance(transform.position, direction, waterRouteSign, out Vector2 avoidanceDirection, out _))
                     {
@@ -203,7 +238,8 @@ namespace UdderDestruction
             if (!IsSleeping && milkshakeTarget && delta.sqrMagnitude <= 0.75f * 0.75f && milkshakeTarget.TryGetComponent(out UdderMilkshake milkshake))
                 milkshake.TakeDamage(contactDamage * Time.deltaTime);
 
-            UdderSpriteFacing.Apply(spriteRenderer, facingDirection, downSprite, sideSprite, upSprite);
+            if (nearCamera)
+                UdderSpriteFacing.Apply(spriteRenderer, facingDirection, downSprite, sideSprite, upSprite);
 
             if (acidTimer > 0f)
             {
@@ -257,6 +293,7 @@ namespace UdderDestruction
             }
 
             lactoseTimer -= Time.deltaTime;
+            UpdateStatusEmote();
         }
 
         private void UpdateBossBehavior()
@@ -277,6 +314,44 @@ namespace UdderDestruction
             queuedChargeDuration = 0.8f;
             chargeCooldown = 3.6f;
             game.ShowCowText(transform.position, "CHARGE!");
+        }
+
+        private void TryStartPrionPlayerCharge()
+        {
+            if (!player || !player.IsAlive || chargeCooldown > 0f || chargeTimer > 0f || chargeWindupTimer > 0f)
+                return;
+
+            Vector2 toPlayer = player.transform.position - transform.position;
+            if (toPlayer.sqrMagnitude < 1.8f * 1.8f || toPlayer.sqrMagnitude > 8f * 8f)
+                return;
+
+            chargeDirection = toPlayer.normalized;
+            chargeWindupTimer = 0.45f;
+            queuedChargeDuration = 0.8f;
+            chargeCooldown = 3.6f;
+            game.ShowCowText(transform.position, "CHARGE!");
+        }
+
+        private Vector2 ApplyPlayerPushResistance(Vector2 desiredMove)
+        {
+            if (!player || desiredMove.sqrMagnitude <= 0.000001f)
+                return desiredMove;
+
+            float resistance = player.EnemyPushResistance;
+            if (resistance <= 0f)
+                return desiredMove;
+
+            Vector2 toPlayer = (Vector2)player.transform.position - (Vector2)transform.position;
+            float distanceSqr = toPlayer.sqrMagnitude;
+            if (distanceSqr <= 0.0001f || distanceSqr > 1.05f * 1.05f)
+                return desiredMove;
+
+            Vector2 intoPlayer = toPlayer.normalized;
+            float inwardSpeed = Vector2.Dot(desiredMove, intoPlayer);
+            if (inwardSpeed <= 0f)
+                return desiredMove;
+
+            return desiredMove - intoPlayer * (inwardSpeed * resistance);
         }
 
         private void OnCollisionStay2D(Collision2D collision)
@@ -402,10 +477,7 @@ namespace UdderDestruction
             slideMultiplier = multiplier;
             slideDirection = lastDirection.sqrMagnitude > 0.01f ? lastDirection.normalized : Vector2.down;
             if (slipTextCooldown <= 0f)
-            {
                 slipTextCooldown = 1f;
-                game.ShowEnemyDebuffText(transform, "Whoopsie!");
-            }
 
             return true;
         }
@@ -436,10 +508,7 @@ namespace UdderDestruction
             if (IsInvulnerable)
                 return;
 
-            bool wasTolerant = lactoseTimer <= 0f;
             lactoseTimer = Mathf.Max(lactoseTimer, duration);
-            if (wasTolerant)
-                game.ShowEnemyDebuffText(transform, "Lactose Intolerance!");
         }
 
         private void ApplyRawMilk(bool contagiousSpread)
@@ -447,13 +516,10 @@ namespace UdderDestruction
             if (IsInvulnerable)
                 return;
 
-            bool wasHealthy = rawMilkTimer <= 0f;
             rawMilkTimer = Mathf.Max(rawMilkTimer, contagiousSpread ? 3.8f : 5.2f);
             if (!IsBoss)
                 rawMilkHoldTimer = Mathf.Max(rawMilkHoldTimer, contagiousSpread ? 0.65f : 1.35f);
             rawMilkTick = Mathf.Min(rawMilkTick <= 0f ? 0.55f : rawMilkTick, 0.55f);
-            if (wasHealthy)
-                game.ShowEnemyDebuffText(transform, "Diseased!");
         }
 
         public void ApplyCondensedMilk(float attackDamage, int level, MilkMode sourceMode)
@@ -479,13 +545,10 @@ namespace UdderDestruction
             if (health <= 0f || IsInvulnerable)
                 return;
 
-            bool wasAwake = sleepTimer <= 0f;
             sleepTimer = Mathf.Max(sleepTimer, duration);
             chargeTimer = 0f;
             chargeWindupTimer = 0f;
             slideTimer = 0f;
-            if (wasAwake)
-                game.ShowEnemyDebuffText(transform, "Zzz...");
         }
 
         public void ApplyPrionPulse(float damagePerSecond, float spreadChance)
@@ -493,7 +556,6 @@ namespace UdderDestruction
             if (health <= 0f || IsBoss || IsBee)
                 return;
 
-            bool wasInfected = prionTimer > 0f;
             prionTimer = float.PositiveInfinity;
             prionDamagePerSecond = Mathf.Max(prionDamagePerSecond, damagePerSecond);
             prionSpreadChance = Mathf.Max(prionSpreadChance, spreadChance);
@@ -502,8 +564,6 @@ namespace UdderDestruction
             if (spriteRenderer)
                 spriteRenderer.color = new Color(1f, 0.96f, 0.35f);
             UpdatePrionIndicator();
-            if (!wasInfected)
-                game.ShowEnemyDebuffText(transform, "Infected!");
         }
 
         public bool TakePrionDamage(float amount)
@@ -672,6 +732,8 @@ namespace UdderDestruction
                 prionIndicatorRenderer.gameObject.SetActive(false);
             if (bossHealthBarRoot)
                 bossHealthBarRoot.gameObject.SetActive(false);
+            if (statusEmoteRenderer)
+                statusEmoteRenderer.gameObject.SetActive(false);
 
             if (spriteRenderer)
             {
@@ -683,11 +745,70 @@ namespace UdderDestruction
 
             yield return new WaitForSeconds(1f);
 
-            if (spriteRenderer && skullDeathSprite)
-                spriteRenderer.sprite = skullDeathSprite;
+            if (spriteRenderer)
+                spriteRenderer.enabled = false;
+            SetStatusEmote(skeletonDeathSprite);
 
             yield return new WaitForSeconds(1f);
             Destroy(gameObject);
+        }
+
+        public void ShowProudEmote()
+        {
+            proudEmoteLocked = true;
+            SetStatusEmote(proudEmoteSprite);
+        }
+
+        private void UpdateStatusEmote()
+        {
+            if (dying || !IsAlive)
+                return;
+            if (proudEmoteLocked)
+                return;
+
+            Sprite emote = null;
+            if (rawMilkTimer > 0f)
+                emote = rawMilkEmoteSprite;
+            else if (poisonTimer > 0f)
+                emote = spoiledMilkEmoteSprite;
+
+            SetStatusEmote(emote);
+        }
+
+        private void SetStatusEmote(Sprite emote)
+        {
+            if (!emote)
+            {
+                if (statusEmoteRenderer)
+                    statusEmoteRenderer.gameObject.SetActive(false);
+                return;
+            }
+
+            EnsureStatusEmoteRenderer();
+            if (!statusEmoteRenderer)
+                return;
+
+            statusEmoteRenderer.sprite = emote;
+            statusEmoteRenderer.gameObject.SetActive(true);
+            statusEmoteRenderer.transform.localPosition = Vector3.up * (IsBoss ? 0.42f : 0.32f);
+            statusEmoteRenderer.transform.localScale = Vector3.one * GetStatusEmoteScale();
+        }
+
+        private void EnsureStatusEmoteRenderer()
+        {
+            if (statusEmoteRenderer)
+                return;
+
+            GameObject emote = new("Status Emote");
+            emote.transform.SetParent(transform, false);
+            emote.transform.localScale = Vector3.one * GetStatusEmoteScale();
+            statusEmoteRenderer = emote.AddComponent<SpriteRenderer>();
+            statusEmoteRenderer.sortingOrder = 12;
+        }
+
+        private float GetStatusEmoteScale()
+        {
+            return IsBoss ? 0.09f : 0.065f;
         }
 
         private void UpdateRawMilkFlies(bool active)

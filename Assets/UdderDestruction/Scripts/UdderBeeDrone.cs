@@ -11,6 +11,7 @@ namespace UdderDestruction
         private int orbitCount;
         private float orbitOffset;
         private float attackDamageTimer;
+        private int attackSlot;
         private bool attacking;
 
         public bool IsAlive => enemy && enemy.IsAlive;
@@ -26,9 +27,10 @@ namespace UdderDestruction
             enemy.UsesCustomMovement = true;
         }
 
-        public void SetAttacking(bool value)
+        public void SetAttacking(bool value, int slot = 0)
         {
             attacking = value;
+            attackSlot = slot;
         }
 
         private void Update()
@@ -40,7 +42,8 @@ namespace UdderDestruction
             float moveSpeed;
             if (attacking)
             {
-                target = player.transform.position;
+                float angle = attackSlot * Mathf.PI * 2f / 3f + Time.time * 0.45f;
+                target = player.transform.position + new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * 0.34f;
                 moveSpeed = enemy.speed * 1.8f;
             }
             else

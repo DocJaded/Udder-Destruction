@@ -5,6 +5,8 @@ namespace UdderDestruction
 {
     public sealed class UdderBeeSwarmController : MonoBehaviour
     {
+        private const float AttackGroupDuration = 2.8f;
+
         private readonly List<UdderBeeDrone> drones = new();
         private UdderEnemy queen;
         private float attackTimer;
@@ -46,7 +48,7 @@ namespace UdderDestruction
 
         private void AssignAttackers()
         {
-            attackTimer = 1f;
+            attackTimer = AttackGroupDuration;
             for (int i = 0; i < drones.Count; i++)
                 drones[i].SetAttacking(false);
 
@@ -54,7 +56,7 @@ namespace UdderDestruction
             for (int i = 0; i < attackerCount; i++)
             {
                 int index = (nextAttacker + i) % drones.Count;
-                drones[index].SetAttacking(true);
+                drones[index].SetAttacking(true, i);
             }
 
             nextAttacker = (nextAttacker + attackerCount) % drones.Count;

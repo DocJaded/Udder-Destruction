@@ -108,7 +108,11 @@ namespace UdderDestruction.Editor
             game.rawMilkFlySprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/93_Fly.png");
             game.cottonDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/54_Cotton.png");
             game.skullDeathSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Miscellaneous/Singles/01_Skull_Human.png");
+            game.skeletonDeathSprite = LoadSprite("Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png", "24_Skeleton_C");
             game.prionAngrySprite = LoadSprite("Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png", "21_Very angry_C");
+            game.proudEmoteSprite = LoadSprite("Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png", "17_Proud_C");
+            game.spoiledMilkEmoteSprite = LoadSprite("Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png", "16_Prohibition_C");
+            game.rawMilkEmoteSprite = LoadSprite("Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png", "11_Uncomfortable_C");
             game.prionProjectileSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/General/Singles/540_Platinum_Gear.png");
             game.dolphinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/70_Mammal_Dolphin.png");
             game.seaUrchinSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Fishing/Singles/114_Echinodermata_SeaUrchin.png");
@@ -249,11 +253,11 @@ namespace UdderDestruction.Editor
             const string folder = "Assets/UdderDestruction/Prefabs";
             Directory.CreateDirectory(folder);
 
-            game.chickenEnemyPrefab = SaveEnemyPrefab($"{folder}/Debt Chicken.prefab", game.chickenSprite, game.chickenDownSprite, game.chickenSideSprite, game.chickenUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 4);
-            game.pigEnemyPrefab = SaveEnemyPrefab($"{folder}/Hostile Ham.prefab", game.pigSprite, game.pigDownSprite, game.pigSideSprite, game.pigUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.13f, new Vector2(0f, -0.02f), 4);
-            game.bossEnemyPrefab = SaveEnemyPrefab($"{folder}/Miyamoto Moosashi.prefab", game.bossCowSprite ? game.bossCowSprite : game.cowSprite, game.bossCowDownSprite, game.bossCowSideSprite, game.bossCowUpSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5);
-            game.beeatriceBossPrefab = ConfigureBeeatricePrefab(SaveEnemyPrefab($"{folder}/BEEatrice.prefab", game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5));
-            game.beeDronePrefab = ConfigureBeeDronePrefab(SaveEnemyPrefab($"{folder}/BEEatrice Drone.prefab", game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 5));
+            game.chickenEnemyPrefab = SaveEnemyPrefab($"{folder}/Debt Chicken.prefab", game, game.chickenSprite, game.chickenDownSprite, game.chickenSideSprite, game.chickenUpSprite, false, 0.12f, Vector2.zero, 4);
+            game.pigEnemyPrefab = SaveEnemyPrefab($"{folder}/Hostile Ham.prefab", game, game.pigSprite, game.pigDownSprite, game.pigSideSprite, game.pigUpSprite, false, 0.13f, new Vector2(0f, -0.02f), 4);
+            game.bossEnemyPrefab = SaveEnemyPrefab($"{folder}/Miyamoto Moosashi.prefab", game, game.bossCowSprite ? game.bossCowSprite : game.cowSprite, game.bossCowDownSprite, game.bossCowSideSprite, game.bossCowUpSprite, true, 0.166f, Vector2.zero, 5);
+            game.beeatriceBossPrefab = ConfigureBeeatricePrefab(SaveEnemyPrefab($"{folder}/BEEatrice.prefab", game, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, true, 0.166f, Vector2.zero, 5));
+            game.beeDronePrefab = ConfigureBeeDronePrefab(SaveEnemyPrefab($"{folder}/BEEatrice Drone.prefab", game, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, false, 0.12f, Vector2.zero, 5));
             game.wholeMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Whole Milk Shot.prefab", game.wholeMilkSprite ? game.wholeMilkSprite : game.bottleSprite, Color.white);
             game.buttermilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Buttermilk Shot.prefab", game.buttermilkSprite ? game.buttermilkSprite : game.bottleSprite, Color.white);
             game.spoiledMilkProjectilePrefab = SaveProjectilePrefab($"{folder}/Spoiled Milk Shot.prefab", game.bottleSprite, new Color(0.55f, 1f, 0.45f));
@@ -351,8 +355,8 @@ namespace UdderDestruction.Editor
             game.beeatriceSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/21_Wasp.png");
             game.beeDroneSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/22_Bee_Drone.png");
             game.honeycombSprite = LoadFirstSprite("Assets/Admurin's Pixel Items/PixelItems/Insects/Singles/30_Honeycomb.png");
-            game.beeatriceBossPrefab = ConfigureBeeatricePrefab(SaveEnemyPrefab($"{folder}/BEEatrice.prefab", game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, true, 0.166f, Vector2.zero, 5));
-            game.beeDronePrefab = ConfigureBeeDronePrefab(SaveEnemyPrefab($"{folder}/BEEatrice Drone.prefab", game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.rawMilkFlySprite, game.cottonDeathSprite, game.skullDeathSprite, game.prionAngrySprite, false, 0.12f, Vector2.zero, 5));
+            game.beeatriceBossPrefab = ConfigureBeeatricePrefab(SaveEnemyPrefab($"{folder}/BEEatrice.prefab", game, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, game.beeatriceSprite, true, 0.166f, Vector2.zero, 5));
+            game.beeDronePrefab = ConfigureBeeDronePrefab(SaveEnemyPrefab($"{folder}/BEEatrice Drone.prefab", game, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, game.beeDroneSprite, false, 0.12f, Vector2.zero, 5));
 
             EditorUtility.SetDirty(game);
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
@@ -447,7 +451,7 @@ namespace UdderDestruction.Editor
             return SavePrefab(path, prefab);
         }
 
-        private static GameObject SaveEnemyPrefab(string path, Sprite sprite, Sprite down, Sprite side, Sprite up, Sprite fly, Sprite cotton, Sprite skull, Sprite prion, bool boss, float radius, Vector2 offset, int sortingOrder)
+        private static GameObject SaveEnemyPrefab(string path, UdderGameController game, Sprite sprite, Sprite down, Sprite side, Sprite up, bool boss, float radius, Vector2 offset, int sortingOrder)
         {
             GameObject prefab = CreateSpriteObject(Path.GetFileNameWithoutExtension(path), sprite, Color.white, Vector3.one, sortingOrder);
             var body = prefab.AddComponent<Rigidbody2D>();
@@ -462,10 +466,14 @@ namespace UdderDestruction.Editor
             enemy.downSprite = down;
             enemy.sideSprite = side;
             enemy.upSprite = up;
-            enemy.rawMilkFlySprite = fly;
-            enemy.cottonDeathSprite = cotton;
-            enemy.skullDeathSprite = skull;
-            enemy.prionAngrySprite = prion;
+            enemy.rawMilkFlySprite = game.rawMilkFlySprite;
+            enemy.cottonDeathSprite = game.cottonDeathSprite;
+            enemy.skullDeathSprite = game.skullDeathSprite;
+            enemy.skeletonDeathSprite = game.skeletonDeathSprite;
+            enemy.prionAngrySprite = game.prionAngrySprite;
+            enemy.proudEmoteSprite = game.proudEmoteSprite;
+            enemy.spoiledMilkEmoteSprite = game.spoiledMilkEmoteSprite;
+            enemy.rawMilkEmoteSprite = game.rawMilkEmoteSprite;
             enemy.avoidsWater = true;
             enemy.IsBoss = boss;
             return SavePrefab(path, prefab);
@@ -519,6 +527,7 @@ namespace UdderDestruction.Editor
             var surface = prefab.AddComponent<UdderDolphinSurface>();
             surface.cottonDeathSprite = game.cottonDeathSprite;
             surface.skullDeathSprite = game.skullDeathSprite;
+            surface.skeletonDeathSprite = game.skeletonDeathSprite;
             return SavePrefab(path, prefab);
         }
 
@@ -1057,6 +1066,10 @@ namespace UdderDestruction.Editor
             enemy.rawMilkFlySprite = game.rawMilkFlySprite;
             enemy.cottonDeathSprite = game.cottonDeathSprite;
             enemy.skullDeathSprite = game.skullDeathSprite;
+            enemy.skeletonDeathSprite = game.skeletonDeathSprite;
+            enemy.proudEmoteSprite = game.proudEmoteSprite;
+            enemy.spoiledMilkEmoteSprite = game.spoiledMilkEmoteSprite;
+            enemy.rawMilkEmoteSprite = game.rawMilkEmoteSprite;
             enemy.avoidsWater = true;
             enemy.IsBoss = boss;
             enemy.maxHealth = boss ? 520f : 11f;

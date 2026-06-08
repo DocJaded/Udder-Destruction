@@ -32,6 +32,7 @@ namespace UdderDestruction
         private Rigidbody2D body;
         private SpriteRenderer spriteRenderer;
         private UdderGameController game;
+        private float baseMass = 1f;
         private float baseMaxHealth;
         private float baseMoveSpeed;
         private float stompDamage;
@@ -65,6 +66,7 @@ namespace UdderDestruction
         public float CheeseItChance => 0.01f + GetPowerLevel(UdderPower.Legendary) * 0.01f;
         public float BovinityAcquisitionBonus => GetPowerLevel(UdderPower.BovineIntervention) * 2.5f;
         public float ProjectileRangeMultiplier => 1f + GetPowerLevel(UdderPower.BullsEye) * 0.15f;
+        public float EnemyPushResistance => Mathf.Clamp01(GetPowerLevel(UdderPower.Beefcake) / 10f);
         public float AttackDamageMultiplier => 1f + overlevelDamageBonusLevels * 0.01f;
         public static int MaxPowerLevelValue => MaxPowerLevel;
 
@@ -73,6 +75,7 @@ namespace UdderDestruction
             game = owner;
             body = GetComponent<Rigidbody2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();
+            baseMass = body ? Mathf.Max(0.01f, body.mass) : 1f;
             baseMaxHealth = maxHealth;
             baseMoveSpeed = moveSpeed;
             stompDamage = 5.5f;
@@ -88,6 +91,7 @@ namespace UdderDestruction
             }
             powerLevels[(int)UdderPower.Stomp] = 1;
             overlevelDamageBonusLevels = 0;
+            RefreshBeefcakePushResistance();
             wholeMilkTimer = 0.2f;
             buttermilkTimer = 1.1f;
             spoiledMilkTimer = 1.8f;
@@ -96,6 +100,15 @@ namespace UdderDestruction
             dairyAirTimer = 4.5f;
             prionPulseTimer = 6f;
             maillardRegenTimer = GetMaillardRegenInterval();
+        }
+
+        public void ApplyStartingHeifer(Color tint, UdderPower startingPower)
+        {
+            if (spriteRenderer)
+                spriteRenderer.color = tint;
+
+            if (startingPower != UdderPower.Stomp && GetRawPowerLevel(startingPower) <= 0)
+                AddPowerLevel(startingPower, 1);
         }
 
         private void Update()
@@ -538,6 +551,7 @@ namespace UdderDestruction
                 float previousMaxHealth = maxHealth;
                 maxHealth = baseMaxHealth * (1f + GetPowerLevel(UdderPower.Beefcake) * 0.1f);
                 health += maxHealth - previousMaxHealth;
+                RefreshBeefcakePushResistance();
             }
             else if (power == UdderPower.Stomp)
             {
@@ -556,6 +570,15 @@ namespace UdderDestruction
         private float GetCurrentMoveSpeed()
         {
             return baseMoveSpeed * (1f + GetPowerLevel(UdderPower.ILikeToMooveIt) * 0.1f);
+        }
+
+        private void RefreshBeefcakePushResistance()
+        {
+            if (!body)
+                return;
+
+            float resistance = EnemyPushResistance;
+            body.mass = baseMass * Mathf.Lerp(1f, 250f, resistance * resistance);
         }
 
         private float GetDamageResistance()

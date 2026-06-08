@@ -15,6 +15,7 @@ namespace UdderDestruction
             public int timesCheesedIt;
             public int chickensSlippedOnButter;
             public int pondsPolluted;
+            public int dolphinsDefeated;
             public List<string> defeatedEnemyKinds = new();
             public List<string> unlockedAchievements = new();
         }
@@ -41,6 +42,7 @@ namespace UdderDestruction
                 UdderAchievementId.DejaMoo => data.timesCheesedIt,
                 UdderAchievementId.ButterChicken => data.chickensSlippedOnButter,
                 UdderAchievementId.TheScumAlsoRises => data.pondsPolluted,
+                UdderAchievementId.TheyCalledHimFlipper => data.dolphinsDefeated,
                 UdderAchievementId.MuensterHunter => GetDefeatedCoreEnemyKindCount(),
                 _ => IsAchievementUnlocked(achievement) ? 1 : 0,
             };
@@ -61,6 +63,12 @@ namespace UdderDestruction
             {
                 data.chickensDefeated++;
                 UnlockAtThreshold(UdderAchievementId.EverybodysHerdAboutTheBird, data.chickensDefeated, 1000);
+            }
+
+            if (kind == UdderEnemyKind.Dolphin)
+            {
+                data.dolphinsDefeated++;
+                UnlockAtThreshold(UdderAchievementId.TheyCalledHimFlipper, data.dolphinsDefeated, 100);
             }
 
             if (kind == UdderEnemyKind.Cow)

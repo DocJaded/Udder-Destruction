@@ -13,22 +13,26 @@ MonoBehaviour:
   m_Name: Readme
   m_EditorClassIdentifier: 
   icon: {fileID: 2800000, guid: 727a75301c3d24613a3ebcec4a24c2c8, type: 3}
-  title: URP Empty Template
+  title: Udder Destruction
   sections:
-  - heading: Welcome to the Universal Render Pipeline
-    text: This template includes the settings and assets you need to start creating with the Universal Render Pipeline.
+  - heading: Project Overview
+    text: Udder Destruction is a top-down survivor-style Unity game. The player chooses one of four cows before play begins, then fights automatic waves while collecting Bovinity and power upgrades.
     linkText: 
     url:
-  - heading: URP Documentation
-    text:
-    linkText: Read more about URP
-    url: https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@latest
-  - heading: Forums
-    text:
-    linkText: Get answers and support
-    url: https://forum.unity.com/forums/universal-render-pipeline.383/
-  - heading: Report bugs
-    text:
-    linkText: Submit a report
-    url: https://unity3d.com/unity/qa/bug-reporting
+  - heading: Player Naming Note
+    text: Older notes, scene objects, prefabs, and code written before character selection may refer to Moolissa. Unless the context specifically means the Moolissa character option, treat those references as meaning the player or the currently selected cow.
+    linkText: 
+    url:
+  - heading: Selectable Cows
+    text: Moolissa starts with Beefcake level 1 and a red tint. Macowrena starts with Whole Milk level 1 and the default tint. Marge starts with Butter level 1 and a yellow tint. Hattie starts with Prion Infection level 1 and a green tint. All cows also start with Stomp level 1.
+    linkText: 
+    url:
+  - heading: Key Scenes
+    text: Primary scene: Assets/Scenes/SampleScene.unity. Test scene: Assets/Scenes/test scene.unity.
+    linkText: 
+    url:
+  - heading: Handover
+    text: See PROJECT_HANDOVER.txt for current gameplay notes, known risks, build guidance, and project-specific development rules.
+    linkText: 
+    url:
   loadedLayout: 1

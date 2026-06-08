@@ -10,6 +10,8 @@ namespace UdderDestruction
         public float fadeTime = 0.7f;
         public float bobAmount = 0.06f;
         public float pulseAmount = 0.08f;
+        public Transform followTarget;
+        public Vector3 worldOffset;
 
         private Color baseColor = Color.white;
         private Vector3 baseLocalPosition;
@@ -34,7 +36,10 @@ namespace UdderDestruction
 
             float pulse = 1f + Mathf.Sin(age * 8f) * pulseAmount;
             transform.localScale = baseLocalScale * pulse;
-            transform.localPosition = baseLocalPosition + Vector3.up * (Mathf.Sin(age * 5f) * bobAmount);
+            if (followTarget)
+                transform.position = followTarget.position + worldOffset + Vector3.up * (Mathf.Sin(age * 5f) * bobAmount);
+            else
+                transform.localPosition = baseLocalPosition + Vector3.up * (Mathf.Sin(age * 5f) * bobAmount);
 
             if (label && age > lingerTime)
             {

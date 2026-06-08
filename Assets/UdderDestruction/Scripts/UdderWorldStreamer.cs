@@ -39,20 +39,23 @@ namespace UdderDestruction
 
         private void Start()
         {
-            Refresh();
+            BuildWorld();
         }
 
         private void Update()
         {
+            if (!arenaBuilt)
+                return;
+
             refreshTimer -= Time.deltaTime;
             if (refreshTimer > 0f)
                 return;
 
             refreshTimer = 0.35f;
-            Refresh();
+            RefreshWaterRegistrationAndColors();
         }
 
-        private void Refresh()
+        public void BuildWorld()
         {
             EnsureArena();
             RefreshWaterRegistrationAndColors();

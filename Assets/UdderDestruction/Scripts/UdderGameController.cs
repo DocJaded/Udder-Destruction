@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PixelBattleText;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 #if ENABLE_INPUT_SYSTEM
@@ -13,6 +14,9 @@ namespace UdderDestruction
 {
     public sealed class UdderGameController : MonoBehaviour
     {
+        private const int MilkshakeRushSpawnBatchSize = 16;
+        private const float MilkshakeRushSpawnInterval = 1f;
+
         [Header("Scene References")]
         public UdderPlayer player;
         public Camera worldCamera;
@@ -61,7 +65,11 @@ namespace UdderDestruction
         public Sprite rawMilkFlySprite;
         public Sprite cottonDeathSprite;
         public Sprite skullDeathSprite;
+        public Sprite skeletonDeathSprite;
         public Sprite prionAngrySprite;
+        public Sprite proudEmoteSprite;
+        public Sprite spoiledMilkEmoteSprite;
+        public Sprite rawMilkEmoteSprite;
         public Sprite prionProjectileSprite;
         public Sprite dolphinSprite;
         public Sprite seaUrchinSprite;
@@ -87,6 +95,7 @@ namespace UdderDestruction
 
         [Header("Main Menu")]
         public GameObject mainMenuOverlay;
+        public GameObject characterSelectOverlay;
         public Button startGameButton;
         public Button soundSettingsButton;
         public Button infoButton;
@@ -123,6 +132,7 @@ namespace UdderDestruction
         private readonly List<UdderEnemy> enemies = new();
         private readonly List<UdderSeaUrchin> seaUrchins = new();
         private readonly List<UdderAlliedCow> alliedCows = new();
+        private readonly Queue<int> milkshakeRushSpawnQueue = new();
         private readonly List<Vector2> waterBodyCenters = new();
         private readonly List<Vector2> waterBodyRadii = new();
         private readonly List<Vector2> contaminatedWaterCenters = new();
@@ -146,6 +156,7 @@ namespace UdderDestruction
         private int bankedDairyDoubles;
         private Sprite runtimeSolidSprite;
         private UdderHud hud;
+        private UdderWorldStreamer worldStreamer;
         private GameObject gameOverOverlay;
         private GameObject pauseOverlay;
         private UdderDairyAirCloud carbonHoofprintAura;
@@ -155,6 +166,8 @@ namespace UdderDestruction
         private static TMP_FontAsset sharedUiFont;
         private bool mainMenuActive = true;
         private bool paused;
+        private bool characterSelectActive;
+        private TMP_Text characterSelectDescriptionLabel;
 
         public float CritChance => 0.11f + wave * 0.005f;
         public int Wave => wave;
@@ -190,6 +203,10 @@ namespace UdderDestruction
 
             hud = GetComponent<UdderHud>();
             sharedUiFont = uiFont ? uiFont : hud ? hud.font : null;
+            ResolveEmotionSpritesInEditor();
+            worldStreamer = FindFirstObjectByType<UdderWorldStreamer>();
+            if (worldStreamer)
+                worldStreamer.BuildWorld();
 
             if (player)
                 player.Init(this);
@@ -220,7 +237,7 @@ namespace UdderDestruction
 
         private void Update()
         {
-            if (mainMenuActive)
+            if (mainMenuActive || characterSelectActive)
                 return;
 
             if (!finished && !choosingPower && IsPausePressed())
@@ -290,6 +307,8 @@ namespace UdderDestruction
             var projectile = EnsureComponent<UdderProjectile>(shot);
             projectile.game = this;
             projectile.mode = mode;
+            projectile.rawMilkFlyPrefab = rawMilkFlyPrefab;
+            projectile.rawMilkFlySprite = rawMilkFlySprite;
             projectile.powerLevel = Mathf.Max(1, powerLevel);
             projectile.condensedMilkLevel = condensedMilkLevel;
             projectile.sleepDuration = mode == MilkMode.WholeMilk && player ? player.GetPastureBedtimeSleepDuration() : 0f;
@@ -811,6 +830,30 @@ namespace UdderDestruction
             }
 
             return separation.sqrMagnitude > 1f ? separation.normalized : separation;
+        }
+
+        public bool IsNearCameraView(Vector3 worldPosition, float padding = 1.75f)
+        {
+            if (!worldCamera)
+                return true;
+
+            float halfHeight = worldCamera.orthographicSize + padding;
+            float halfWidth = worldCamera.orthographicSize * worldCamera.aspect + padding;
+            Vector3 cameraPosition = worldCamera.transform.position;
+            return Mathf.Abs(worldPosition.x - cameraPosition.x) <= halfWidth
+                && Mathf.Abs(worldPosition.y - cameraPosition.y) <= halfHeight;
+        }
+
+        public bool IsInsideCameraView(Vector3 worldPosition)
+        {
+            if (!worldCamera)
+                return true;
+
+            float halfHeight = worldCamera.orthographicSize;
+            float halfWidth = worldCamera.orthographicSize * worldCamera.aspect;
+            Vector3 cameraPosition = worldCamera.transform.position;
+            return Mathf.Abs(worldPosition.x - cameraPosition.x) <= halfWidth
+                && Mathf.Abs(worldPosition.y - cameraPosition.y) <= halfHeight;
         }
 
         public bool IsInWater(Vector2 position, float padding)
@@ -1367,13 +1410,150 @@ namespace UdderDestruction
 
         private void StartGame()
         {
+            if (mainMenuOverlay)
+                mainMenuOverlay.SetActive(false);
+
+            ShowCharacterSelect();
+        }
+
+        private void ShowCharacterSelect()
+        {
+            Time.timeScale = 0f;
+            characterSelectActive = true;
+
+            if (characterSelectOverlay)
+                Destroy(characterSelectOverlay);
+
+            characterSelectOverlay = new GameObject("Character Select Overlay");
+            var canvas = characterSelectOverlay.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 191;
+            var scaler = characterSelectOverlay.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280f, 720f);
+            characterSelectOverlay.AddComponent<GraphicRaycaster>();
+
+            GameObject infoPanel = CreateWoodenOverlayPanel(characterSelectOverlay.transform, new Vector2(720f, 132f));
+            var infoRect = infoPanel.GetComponent<RectTransform>();
+            infoRect.anchoredPosition = new Vector2(0f, 220f);
+            characterSelectDescriptionLabel = CreateGameOverText(infoPanel.transform, "Hover over each Heifer for more information", Vector2.zero, 25f);
+            characterSelectDescriptionLabel.textWrappingMode = TextWrappingModes.Normal;
+            characterSelectDescriptionLabel.rectTransform.sizeDelta = new Vector2(600f, 96f);
+
+            GameObject panel = CreateWoodenOverlayPanel(characterSelectOverlay.transform, new Vector2(500f, 260f));
+            var panelRect = panel.GetComponent<RectTransform>();
+            panelRect.anchoredPosition = new Vector2(0f, -70f);
+            CreateGameOverText(panel.transform, "Please Select One of The Four Heifers of the Apocowlypse!", new Vector2(0f, 93f), 15f);
+
+            CreateHeiferButton(panel.transform, "Moolissa", UdderPower.Beefcake, new Color(1f, 0.55f, 0.55f), new Vector2(-165f, -18f), "Likes to fight mano a hoofo. As such, she starts with the Beefcake upgrade at level 1.");
+            CreateHeiferButton(panel.transform, "Macowrena", UdderPower.WholeMilk, Color.white, new Vector2(-55f, -18f), "She likes her relationships to be long distance. She starts with the Whole Milk upgrade at level 1.");
+            CreateHeiferButton(panel.transform, "Marge", UdderPower.Butter, new Color(1f, 0.9f, 0.35f), new Vector2(55f, -18f), "Catch her if you can! She's a slippery one! She starts with the Butter upgrade at level 1.");
+            CreateHeiferButton(panel.transform, "Hattie", UdderPower.PrionInfection, new Color(0.58f, 1f, 0.58f), new Vector2(165f, -18f), "She's such a hoof-ful, she drives everyone crazy! She starts with Prion Infection at level 1.");
+        }
+
+        private void CreateHeiferButton(Transform parent, string heiferName, UdderPower startingPower, Color tint, Vector2 anchoredPosition, string description)
+        {
+            GameObject root = new("Heifer Option " + heiferName);
+            root.transform.SetParent(parent, false);
+            var rootRect = root.AddComponent<RectTransform>();
+            rootRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rootRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rootRect.pivot = new Vector2(0.5f, 0.5f);
+            rootRect.anchoredPosition = anchoredPosition;
+            rootRect.sizeDelta = new Vector2(95f, 115f);
+
+            GameObject buttonObject = new(heiferName + " Button");
+            buttonObject.transform.SetParent(root.transform, false);
+            var buttonRect = buttonObject.AddComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.5f, 1f);
+            buttonRect.anchorMax = new Vector2(0.5f, 1f);
+            buttonRect.pivot = new Vector2(0.5f, 1f);
+            buttonRect.anchoredPosition = Vector2.zero;
+            buttonRect.sizeDelta = new Vector2(85f, 75f);
+
+            var image = buttonObject.AddComponent<Image>();
+            ApplyWoodenButtonImage(image);
+
+            var button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.onClick.AddListener(() => SelectHeifer(tint, startingPower));
+            if (uiButtonPressedSprite)
+            {
+                SpriteState state = button.spriteState;
+                state.pressedSprite = uiButtonPressedSprite;
+                state.selectedSprite = uiButtonSprite ? uiButtonSprite : image.sprite;
+                button.spriteState = state;
+            }
+
+            GameObject content = new("Cow Content");
+            content.transform.SetParent(buttonObject.transform, false);
+            var contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = Vector2.zero;
+            contentRect.anchorMax = Vector2.one;
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+
+            AddHeiferButtonEvents(buttonObject, contentRect, description);
+
+            GameObject cowObject = new(heiferName + " Sprite");
+            cowObject.transform.SetParent(content.transform, false);
+            var cowRect = cowObject.AddComponent<RectTransform>();
+            cowRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cowRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cowRect.pivot = new Vector2(0.5f, 0.5f);
+            cowRect.anchoredPosition = Vector2.zero;
+            cowRect.sizeDelta = new Vector2(54f, 54f);
+            var cowImage = cowObject.AddComponent<Image>();
+            cowImage.sprite = cowSprite ? cowSprite : cowSideSprite;
+            cowImage.color = tint;
+            cowImage.preserveAspect = true;
+            cowImage.raycastTarget = false;
+
+            CreateGameOverText(root.transform, heiferName, new Vector2(0f, -42f), 15f);
+        }
+
+        private void AddHeiferButtonEvents(GameObject buttonObject, RectTransform content, string description)
+        {
+            var trigger = buttonObject.AddComponent<EventTrigger>();
+            Vector2 normalPosition = content.anchoredPosition;
+            Vector2 pressedPosition = normalPosition + new Vector2(0f, -3f);
+
+            AddEventTrigger(trigger, EventTriggerType.PointerDown, () => content.anchoredPosition = pressedPosition);
+            AddEventTrigger(trigger, EventTriggerType.PointerUp, () => content.anchoredPosition = normalPosition);
+            AddEventTrigger(trigger, EventTriggerType.PointerEnter, () => SetCharacterSelectDescription(description));
+            AddEventTrigger(trigger, EventTriggerType.PointerExit, () =>
+            {
+                content.anchoredPosition = normalPosition;
+                SetCharacterSelectDescription("Hover over each Heifer for more information");
+            });
+        }
+
+        private static void AddEventTrigger(EventTrigger trigger, EventTriggerType type, UnityEngine.Events.UnityAction action)
+        {
+            var entry = new EventTrigger.Entry { eventID = type };
+            entry.callback.AddListener(_ => action());
+            trigger.triggers.Add(entry);
+        }
+
+        private void SelectHeifer(Color tint, UdderPower startingPower)
+        {
+            player?.ApplyStartingHeifer(tint, startingPower);
+            characterSelectDescriptionLabel = null;
+            if (characterSelectOverlay)
+            {
+                Destroy(characterSelectOverlay);
+                characterSelectOverlay = null;
+            }
+
+            characterSelectActive = false;
             mainMenuActive = false;
             Time.timeScale = 1f;
+        }
 
-            if (mainMenuOverlay)
-            {
-                mainMenuOverlay.SetActive(false);
-            }
+        private void SetCharacterSelectDescription(string description)
+        {
+            if (characterSelectDescriptionLabel)
+                characterSelectDescriptionLabel.text = description;
         }
 
         private static void ExitGame()
@@ -1553,42 +1733,6 @@ namespace UdderDestruction
             DisplayText(text, healText, worldPosition + Vector3.up * 0.8f, true);
         }
 
-        public void ShowEnemyDebuffText(Transform enemy, string text)
-        {
-            if (!enemy)
-                return;
-
-            GameObject textObject = new("Enemy Debuff Text");
-            textObject.transform.SetParent(enemy, false);
-            Vector3 enemyScale = enemy.lossyScale;
-            textObject.transform.localPosition = new Vector3(
-                0f,
-                enemyScale.y != 0f ? 0.72f / Mathf.Abs(enemyScale.y) : 0.72f,
-                0f);
-            textObject.transform.localScale = new Vector3(
-                enemyScale.x != 0f ? 1f / Mathf.Abs(enemyScale.x) : 1f,
-                enemyScale.y != 0f ? 1f / Mathf.Abs(enemyScale.y) : 1f,
-                1f);
-
-            var label = textObject.AddComponent<TextMeshPro>();
-            ApplyPixelFont(label);
-            label.text = text;
-            label.color = new Color(1f, 0.86f, 0.12f);
-            label.fontSize = 0.42f;
-            label.alignment = TextAlignmentOptions.Center;
-            label.sortingOrder = 20;
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.outlineWidth = 0.18f;
-            label.outlineColor = Color.black;
-
-            var timedText = textObject.AddComponent<UdderTimedWorldText>();
-            timedText.label = label;
-            timedText.lingerTime = 1.1f;
-            timedText.fadeTime = 0.7f;
-            timedText.bobAmount = 0.025f;
-            timedText.pulseAmount = 0.04f;
-        }
-
         public void ShowHealText(Vector3 worldPosition, float amount)
         {
             string label = amount > 0f ? "+" + Mathf.CeilToInt(amount).ToString() : "HP Full!";
@@ -1675,8 +1819,46 @@ namespace UdderDestruction
         public void GameOver()
         {
             finished = true;
+            ShowProudEmotesOnRemainingEnemies();
             StartCoroutine(ShowGameOverSequence());
         }
+
+        private void ShowProudEmotesOnRemainingEnemies()
+        {
+            CleanupEnemyList();
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                UdderEnemy enemy = enemies[i];
+                if (enemy && enemy.IsAlive)
+                    enemy.ShowProudEmote();
+            }
+        }
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        private void ResolveEmotionSpritesInEditor()
+        {
+#if UNITY_EDITOR
+            const string emotionSpritePath = "Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png";
+            skeletonDeathSprite = skeletonDeathSprite ? skeletonDeathSprite : LoadEditorSprite(emotionSpritePath, "24_Skeleton_C");
+            proudEmoteSprite = proudEmoteSprite ? proudEmoteSprite : LoadEditorSprite(emotionSpritePath, "17_Proud_C");
+            spoiledMilkEmoteSprite = spoiledMilkEmoteSprite ? spoiledMilkEmoteSprite : LoadEditorSprite(emotionSpritePath, "16_Prohibition_C");
+            rawMilkEmoteSprite = rawMilkEmoteSprite ? rawMilkEmoteSprite : LoadEditorSprite(emotionSpritePath, "11_Uncomfortable_C");
+#endif
+        }
+
+#if UNITY_EDITOR
+        private static Sprite LoadEditorSprite(string path, string spriteName)
+        {
+            Object[] assets = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(path);
+            for (int i = 0; i < assets.Length; i++)
+            {
+                if (assets[i] is Sprite sprite && sprite.name == spriteName)
+                    return sprite;
+            }
+
+            return null;
+        }
+#endif
 
         private IEnumerator ShowGameOverSequence()
         {
@@ -1782,11 +1964,16 @@ namespace UdderDestruction
 
         private void SpawnEnemy(int sourceWave)
         {
+            SpawnEnemy(sourceWave, GetEnemySpawnPositionNearPlayer());
+        }
+
+        private void SpawnEnemy(int sourceWave, Vector3 spawnPosition)
+        {
             bool isChicken = Random.value >= GetPigWaveRatio(sourceWave);
             GameObject enemyPrefab = isChicken ? chickenEnemyPrefab : pigEnemyPrefab;
             bool fromPrefab = enemyPrefab;
             GameObject enemyObject = InstantiateOrCreate(enemyPrefab, isChicken ? "Debt Chicken" : "Hostile Ham");
-            enemyObject.transform.position = GetEnemySpawnPositionNearPlayer();
+            enemyObject.transform.position = spawnPosition;
             var renderer = EnsureComponent<SpriteRenderer>(enemyObject);
             renderer.sprite = isChicken ? chickenSprite : pigSprite;
             renderer.sortingOrder = 4;
@@ -1816,6 +2003,7 @@ namespace UdderDestruction
             enemy.cottonDeathSprite = cottonDeathSprite;
             enemy.skullDeathSprite = skullDeathSprite;
             enemy.prionAngrySprite = prionAngrySprite;
+            ConfigureEnemyEmoteSprites(enemy);
             enemy.prionIndicatorPrefab = prionIndicatorPrefab;
             enemy.avoidsWater = true;
             enemy.maxHealth = isChicken ? 8f : Random.value < 0.25f ? 22f : 14f;
@@ -1823,6 +2011,17 @@ namespace UdderDestruction
             enemy.creamValue = isChicken ? Random.Range(1, 3) : Random.Range(2, 5);
             enemy.Init(this, player, 1f + sourceWave * 0.13f, GetEnemySpeedScale(sourceWave));
             enemies.Add(enemy);
+        }
+
+        private void ConfigureEnemyEmoteSprites(UdderEnemy enemy)
+        {
+            if (!enemy)
+                return;
+
+            enemy.skeletonDeathSprite = skeletonDeathSprite;
+            enemy.proudEmoteSprite = proudEmoteSprite;
+            enemy.spoiledMilkEmoteSprite = spoiledMilkEmoteSprite;
+            enemy.rawMilkEmoteSprite = rawMilkEmoteSprite;
         }
 
         public void SpawnTestUnit(UdderTestSpawnUnit unit)
@@ -1924,6 +2123,7 @@ namespace UdderDestruction
             enemy.cottonDeathSprite = cottonDeathSprite;
             enemy.skullDeathSprite = skullDeathSprite;
             enemy.prionAngrySprite = prionAngrySprite;
+            ConfigureEnemyEmoteSprites(enemy);
             enemy.prionIndicatorPrefab = prionIndicatorPrefab;
             enemy.avoidsWater = true;
             enemy.maxHealth = isChicken ? 8f : 18f;
@@ -1971,6 +2171,7 @@ namespace UdderDestruction
             enemy.cottonDeathSprite = cottonDeathSprite;
             enemy.skullDeathSprite = skullDeathSprite;
             enemy.prionAngrySprite = prionAngrySprite;
+            ConfigureEnemyEmoteSprites(enemy);
             enemy.prionIndicatorPrefab = prionIndicatorPrefab;
             enemy.avoidsWater = true;
             enemy.isFlying = true;
@@ -2001,6 +2202,48 @@ namespace UdderDestruction
             }
 
             return ClampToVisibleField(center + Random.insideUnitCircle.normalized * 6.5f, 0.9f);
+        }
+
+        private Vector3 GetMilkshakeRushSpawnPositionOffScreen()
+        {
+            if (!worldCamera)
+                return GetEnemySpawnPositionNearPlayer();
+
+            float halfHeight = worldCamera.orthographicSize;
+            float halfWidth = halfHeight * worldCamera.aspect;
+            float screenSpan = Mathf.Max(halfWidth, halfHeight) * 2f;
+            Vector3 playerPosition = player ? player.transform.position : worldCamera.transform.position;
+
+            for (int i = 0; i < 24; i++)
+            {
+                Vector3 baseSpawn = GetEnemySpawnPositionNearPlayer();
+                Vector2 outward = baseSpawn - playerPosition;
+                if (outward.sqrMagnitude < 0.01f)
+                    outward = Random.insideUnitCircle.normalized;
+                if (outward.sqrMagnitude < 0.01f)
+                    outward = Vector2.right;
+
+                Vector3 candidate = baseSpawn + (Vector3)(outward.normalized * screenSpan);
+                candidate = ClampToGrassArena(candidate, 0.8f);
+                if (!IsInsideCameraView(candidate) && !IsInWater(candidate, 0.45f))
+                    return candidate;
+            }
+
+            Vector2 fallbackDirection = Random.insideUnitCircle.normalized;
+            if (fallbackDirection.sqrMagnitude < 0.01f)
+                fallbackDirection = Vector2.right;
+            Vector3 fallback = playerPosition + (Vector3)(fallbackDirection * (screenSpan + Mathf.Max(halfWidth, halfHeight)));
+            return ClampToGrassArena(fallback, 0.8f);
+        }
+
+        private static Vector3 ClampToGrassArena(Vector3 position, float padding)
+        {
+            const float halfGrass = 50f;
+            float min = -halfGrass + padding;
+            float max = halfGrass - padding;
+            position.x = Mathf.Clamp(position.x, min, max);
+            position.y = Mathf.Clamp(position.y, min, max);
+            return position;
         }
 
         private void UpdateDolphin()
@@ -2055,6 +2298,7 @@ namespace UdderDestruction
             surface.game = this;
             surface.cottonDeathSprite = cottonDeathSprite;
             surface.skullDeathSprite = skullDeathSprite;
+            surface.skeletonDeathSprite = skeletonDeathSprite;
         }
 
         private void LaunchSeaUrchin(Vector3 origin, Vector3 target)
@@ -2089,6 +2333,7 @@ namespace UdderDestruction
             RefreshStampedeAllies();
             playerTookDamageThisWave = false;
             spawningMilkshakeRush = false;
+            milkshakeRushSpawnQueue.Clear();
             int count = GetWaveEnemyCount(wave);
             enemiesLeftInWave = count;
             enemiesPendingSpawn = count;
@@ -2143,9 +2388,30 @@ namespace UdderDestruction
             if (waveSpawnTimer > 0f)
                 return;
 
+            if (spawningMilkshakeRush)
+            {
+                SpawnMilkshakeRushBatch();
+                waveSpawnTimer = MilkshakeRushSpawnInterval;
+                return;
+            }
+
             SpawnEnemy();
             enemiesPendingSpawn--;
             waveSpawnTimer = GetWaveSpawnInterval();
+        }
+
+        private void SpawnMilkshakeRushBatch()
+        {
+            int spawned = 0;
+            while (spawned < MilkshakeRushSpawnBatchSize && milkshakeRushSpawnQueue.Count > 0)
+            {
+                SpawnEnemy(milkshakeRushSpawnQueue.Dequeue(), GetMilkshakeRushSpawnPositionOffScreen());
+                enemiesPendingSpawn--;
+                spawned++;
+            }
+
+            if (milkshakeRushSpawnQueue.Count == 0)
+                spawningMilkshakeRush = false;
         }
 
         private bool IsWaveCleared()
@@ -2191,21 +2457,21 @@ namespace UdderDestruction
                 return false;
 
             spawningMilkshakeRush = true;
+            milkshakeRushSpawnQueue.Clear();
             SpawnMilkshake(player.transform.position, player.Health);
 
             int totalCount = 0;
             for (int rushWave = firstRushWave; rushWave <= lastRushWave; rushWave++)
-                totalCount += GetWaveEnemyCount(rushWave);
-
-            enemiesLeftInWave = totalCount;
-            enemiesPendingSpawn = 0;
-            for (int rushWave = firstRushWave; rushWave <= lastRushWave; rushWave++)
             {
                 int count = GetWaveEnemyCount(rushWave);
                 for (int i = 0; i < count; i++)
-                    SpawnEnemy(rushWave);
+                    milkshakeRushSpawnQueue.Enqueue(rushWave);
+                totalCount += count;
             }
 
+            enemiesLeftInWave = totalCount;
+            enemiesPendingSpawn = totalCount;
+            waveSpawnTimer = 0f;
             wave = nextBossWave;
             playerTookDamageThisWave = false;
             DisplayTopScreenText("MILKSHAKE RUSH!");
@@ -2380,7 +2646,7 @@ namespace UdderDestruction
             {
                 UdderBossType.BobMoorley => 3,
                 UdderBossType.HughHoofner => 5,
-                UdderBossType.Beeatrice => 12,
+                UdderBossType.Beeatrice => 30,
                 _ => 0,
             };
             int normalReinforcements = repeatEncounter && bossType != UdderBossType.BobMoorley ? wave : 0;
@@ -2456,6 +2722,7 @@ namespace UdderDestruction
             enemy.cottonDeathSprite = cottonDeathSprite;
             enemy.skullDeathSprite = skullDeathSprite;
             enemy.prionAngrySprite = prionAngrySprite;
+            ConfigureEnemyEmoteSprites(enemy);
             enemy.prionIndicatorPrefab = prionIndicatorPrefab;
             enemy.avoidsWater = true;
             enemy.isFlying = bossType == UdderBossType.Beeatrice;
@@ -2484,7 +2751,7 @@ namespace UdderDestruction
             else if (bossType == UdderBossType.HughHoofner)
                 SpawnBossCowEscort(bossObject.transform.position, 5);
             else if (bossType == UdderBossType.Beeatrice)
-                SpawnBeeatriceSwarm(enemy, bossObject.transform.position, 12);
+                SpawnBeeatriceSwarm(enemy, bossObject.transform.position, 30);
 
             DisplayText("BOSS: " + bossName.ToUpperInvariant(), levelText, player.transform.position + Vector3.up * 1.2f);
         }
@@ -2582,6 +2849,7 @@ namespace UdderDestruction
                 enemy.cottonDeathSprite = cottonDeathSprite;
                 enemy.skullDeathSprite = skullDeathSprite;
                 enemy.prionAngrySprite = prionAngrySprite;
+                ConfigureEnemyEmoteSprites(enemy);
                 enemy.prionIndicatorPrefab = prionIndicatorPrefab;
                 enemy.avoidsWater = true;
                 enemy.isFlying = true;
@@ -2638,6 +2906,7 @@ namespace UdderDestruction
             enemy.cottonDeathSprite = cottonDeathSprite;
             enemy.skullDeathSprite = skullDeathSprite;
             enemy.prionAngrySprite = prionAngrySprite;
+            ConfigureEnemyEmoteSprites(enemy);
             enemy.prionIndicatorPrefab = prionIndicatorPrefab;
             enemy.avoidsWater = true;
             enemy.IsBoss = false;

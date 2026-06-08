@@ -11,6 +11,7 @@ namespace UdderDestruction
         DejaMoo,
         ButterChicken,
         TheScumAlsoRises,
+        TheyCalledHimFlipper,
     }
 
     public enum UdderEnemyKind
@@ -44,6 +45,7 @@ namespace UdderDestruction
                 UdderAchievementId.DejaMoo => "Déjà Moo",
                 UdderAchievementId.ButterChicken => "Butter Chicken",
                 UdderAchievementId.TheScumAlsoRises => "The Scum Also Rises",
+                UdderAchievementId.TheyCalledHimFlipper => "They CALLED him Flipper",
                 _ => achievement.ToString(),
             };
         }
@@ -61,6 +63,7 @@ namespace UdderDestruction
                 UdderAchievementId.DejaMoo => "Cheese it 1000 times.",
                 UdderAchievementId.ButterChicken => "Have 1000 chickens slip on butter.",
                 UdderAchievementId.TheScumAlsoRises => "Pollute ponds 100 times with spoiled milk.",
+                UdderAchievementId.TheyCalledHimFlipper => "Kill 100 dolphins.",
                 _ => string.Empty,
             };
         }
@@ -74,6 +77,7 @@ namespace UdderDestruction
                 UdderAchievementId.DejaMoo => 1000,
                 UdderAchievementId.ButterChicken => 1000,
                 UdderAchievementId.TheScumAlsoRises => 100,
+                UdderAchievementId.TheyCalledHimFlipper => 100,
                 _ => 1,
             };
         }

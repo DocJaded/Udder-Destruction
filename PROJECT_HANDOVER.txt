@@ -1,7 +1,7 @@
 UDDER DESTRUCTION - PROJECT HANDOVER
 ====================================
 
-Last updated: June 4, 2026
+Last updated: June 8, 2026
 Project root: C:\Unity\Udder Destruction
 Unity version: 6000.3.7f1
 Primary scene: Assets/Scenes/SampleScene.unity
@@ -24,12 +24,17 @@ commit. Do not assume the last commit represents the current game.
 HIGH-LEVEL GAME
 ---------------
 
-Udder Destruction is a top-down survivor-style action game starring Moolissa
-Hoofman. The player moves with WASD or arrow keys while powers fire
-automatically. Defeated enemies award Bovinity and may drop pickups. Filling
-the Bovinity bar pauses the game and offers three randomly selected powers.
+Udder Destruction is a top-down survivor-style action game with four selectable
+player cows: Moolissa, Macowrena, Marge, and Hattie. Older project notes and
+code comments written before character selection often say "Moolissa"; unless
+they specifically refer to the Moolissa character option, treat those references
+as meaning "the player" or "the currently selected cow." The player moves with
+WASD or arrow keys while powers fire automatically. Defeated enemies award
+Bovinity and may drop pickups. Filling the Bovinity bar pauses the game and
+offers three randomly selected powers.
 
-The player begins with Stomp level 1. Powers can reach level 10.
+Every cow begins with Stomp level 1. The selected cow then receives one
+additional starting power. Powers can reach level 10.
 
 The current arena is a finite 100 x 100 grass-tile playing field surrounded by
 a 24-tile-deep pond border. Normal enemies and bosses avoid water. The player
@@ -51,7 +56,12 @@ Current base values:
 - Base Stomp damage: 5.5
 - Base Cheese It chance: 1%
 - Maximum power level: 10
-- Starting power: Stomp level 1
+- Universal starting power: Stomp level 1
+- Character-select bonus powers:
+  - Moolissa: Beefcake level 1, red-tinted sprite
+  - Macowrena: Whole Milk level 1, default sprite color
+  - Marge: Butter level 1, yellow-tinted sprite
+  - Hattie: Prion Infection level 1, green-tinted sprite
 - Starting Bovinity requirement: 5
 - Later Bovinity requirement: 5 * current Bovinity level
 
@@ -230,7 +240,9 @@ Normal enemy prefab colliders:
 - Miyamoto Moosashi/base boss prefab: radius 0.166.
 
 Death visuals:
-- Normal enemies, bosses, and dolphins use cotton followed by skull.
+- Normal enemies, bosses, and dolphins use cotton followed by the compact
+  24_Skeleton_C emotion icon. The old large skull sprite should not be used for
+  this death phase.
 - "KO" text is no longer used.
 
 Drop roll after a normal enemy death:
@@ -291,9 +303,10 @@ The Ruminator
 
 BEEatrice
 - Uses the 21_Wasp sprite and is not a cow.
-- Spawns with 12 bee drones using the 22_Bee_Drone sprite.
+- Spawns with 30 bee drones using the 22_Bee_Drone sprite.
 - Drones are one-third BEEatrice's height and orbit her while guarding.
-- Three drones at a time attack the player, rotating attack duty every second.
+- Three drones at a time attack the player in committed groups, rotating attack
+  duty after about 2.8 seconds.
 - BEEatrice is completely immune and excluded from auto-aim until every drone
   is dead.
 - Defeating BEEatrice drops a honeycomb using 30_Honeycomb.
@@ -331,17 +344,31 @@ UI AND TEXT
 Main scene UI:
 - The main menu is part of the Canvas and has editable scene GameObjects.
 - Start Game and Exit Game work.
+- Start Game now opens a character-selection screen before gameplay begins.
+  The selectable cows are Moolissa, Macowrena, Marge, and Hattie. Each cow's
+  sprite is centered inside a wooden button, with the cow name beneath the
+  button.
 - Sound Settings, Info, and About exist but are disabled/unimplemented.
 - Escape toggles pause.
 - Pausing clones the editable main-menu overlay so its scene-authored layout
   and visuals are preserved.
 - The pause menu replaces Start Game with Resume Game and Exit Game with End
   Game. Resume Game and Escape unpause; End Game reloads to the main menu.
-- HUD INFO Back displays:
+- HUD INFO Back may still display legacy text such as:
   MOOLISSA:    WAVE {wave}        LVL {bovinityLevel}         DD {bankedDairyDoubles}
+  Treat this as legacy shorthand for the current player unless/until the HUD is
+  updated to show the selected cow name.
 - Runtime HUD updates preserve that
   manually spaced text format and the scene-authored HUD transforms/styles.
 - Health and Bovinity bars are scene objects and have been manually positioned.
+
+Test scene:
+- Assets/Scenes/test scene.unity mirrors the main play area but starts
+  immediately without the main menu or automatic wave spawning.
+- The top-right Test Spawn Menu has a dropdown and Spawn button for every
+  normal enemy and boss, including BEEatrice.
+- Rebuild it from the Unity menu with:
+  Udder Destruction/Build Test Scene.
 
 Visual style:
 - General UI uses the Fantasy Wooden GUI Free asset pack.
@@ -349,8 +376,12 @@ Visual style:
 - Battle text continues to use PixelBattleText.
 
 Current battle-text rules:
-- Desired status callouts include "Infected!", "Diseased!",
-  "Lactose Intolerance!", "YUCK!", and "Whoopsie!".
+- High-volume enemy status text callouts were removed for performance.
+- Enemy status visuals now use compact emotion icons instead of TMP text:
+  Raw Milk uses 11_Uncomfortable_C, Spoiled Milk uses 16_Prohibition_C, and
+  enemies surviving the player death show 17_Proud_C.
+- Event callouts such as "YUCK!", "MILKSHAKE!", and "CHARGE!" may still use
+  text.
 - "OW!" and "KO" are removed.
 - Enemy damage numbers are currently disabled by an early return in
   UdderGameController.ShowDamageText.
@@ -361,8 +392,8 @@ Current battle-text rules:
 - Power-choice buff/result messages are screen-anchored near the bottom center
   with margin.
 - Enemy debuff messages such as "Infected!", "Diseased!", "Lactose
-  Intolerance!", and "Whoopsie!" are world text above the affected enemy and
-  follow that enemy until they fade.
+  Intolerance!", and "Whoopsie!" should not be reintroduced as mass TMP text;
+  use lightweight status icons or pooled visuals instead.
 
 Important warning:
 - Some overlays still have procedural fallback creation code, including pause
@@ -382,6 +413,8 @@ Assets/UdderDestruction/Prefabs
 
 Important prefabs:
 - Moolissa Player.prefab
+  Historical name: this prefab is the player prefab. New character choices tint
+  and grant starting powers at runtime.
 - Debt Chicken.prefab
 - Hostile Ham.prefab
 - Miyamoto Moosashi.prefab
@@ -414,6 +447,9 @@ Important source assets:
 - Prion anger indicator:
   Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png,
   sprite 21_Very angry_C
+- Status/death/player-loss emotion icons:
+  Assets/2D Pixel Art Icons/2D Pixel Art Emotion  Icons/Sprite.png,
+  sprites 11_Uncomfortable_C, 16_Prohibition_C, 17_Proud_C, and 24_Skeleton_C
 - Slime animations:
   Assets/War/Slime Enemy - Pixel Art
 - BEEatrice:
